@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>中和南勢角-業績整合統計系統</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <!-- 引入 SheetJS 函式庫用於產生多分頁 Excel 檔案 -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>中和南勢角-業績整合統計系統</h1>
+    </header>
+
+    <!-- 來源檔案插槽區 -->
+    <div class="slots-grid">
+      <!-- Slot 1: 門市銷售統計檔 -->
+      <div class="slot-card" id="slot1Card">
+        <input type="file" id="fileSlot1" accept=".xls,.tsv,.txt,.csv" hidden>
+        <div class="slot-title">Slot 1：門市銷售統計檔</div>
+        <div class="slot-desc">點擊選取或拖曳門銷明細報表 (.xls / .tsv) 至此</div>
+        <div class="slot-status" id="statusSlot1">尚未載入檔案</div>
+      </div>
+
+      <!-- Slot 2: 訂金未取貨統計檔 -->
+      <div class="slot-card" id="slot2Card">
+        <input type="file" id="fileSlot2" accept=".xls,.tsv,.txt,.csv" hidden>
+        <div class="slot-title">Slot 2：訂金未取貨統計檔</div>
+        <div class="slot-desc">點擊選取或拖曳訂金未取貨報表 (.xls / .tsv) 至此</div>
+        <div class="slot-status" id="statusSlot2">尚未載入檔案</div>
+      </div>
+    </div>
+
+    <!-- 控制面板 -->
+    <div class="control-panel">
+      <div class="options-group">
+        <div class="group-label">【計算規則篩選設定】</div>
+        <div class="checkboxes">
+          <label>
+            <input type="checkbox" id="chkExcludeE" checked>
+            金額計算主動排除 E / e 開頭銷售人員
+          </label>
+        </div>
+      </div>
+
+      <div class="options-group">
+        <div class="group-label">【Slot 1 門市銷售報表】</div>
+        <div class="checkboxes" id="s1CheckGroup">
+          <label><input type="checkbox" class="chk-s1" value="S1_R1" disabled> S1_R1 原始銷售明細</label>
+          <label><input type="checkbox" class="chk-s1" value="S1_R2" disabled> S1_R2 單據彙整表</label>
+          <label><input type="checkbox" class="chk-s1" value="S1_R3" disabled> S1_R3 人員績效統計</label>
+          <label><input type="checkbox" class="chk-s1" value="S1_R4" disabled checked> S1_R4 品類營收分析 (預設)</label>
+          <label><input type="checkbox" class="chk-s1" value="S1_R5" disabled> S1_R5 分類銷售明細</label>
+          <label><input type="checkbox" class="chk-s1" value="S1_R6" disabled> S1_R6 分類銷售彙整</label>
+          <label><input type="checkbox" class="chk-s1" value="S1_R7" disabled checked> S1_R7 分類業績統計</label>
+        </div>
+      </div>
+
+      <div class="options-group">
+        <div class="group-label">【Slot 2 訂金未取報表】</div>
+        <div class="checkboxes" id="s2CheckGroup">
+          <label><input type="checkbox" class="chk-s2" value="S2_R1" disabled> S2_R1 訂金未取明細表</label>
+          <label><input type="checkbox" class="chk-s2" value="S2_R2" disabled checked> S2_R2 未取件列表 (一單一列)</label>
+          <label><input type="checkbox" class="chk-s2" value="S2_R3" disabled checked> S2_R3 未取訂金品類分析</label>
+        </div>
+      </div>
+
+      <div class="btn-bar">
+        <button id="btnRun" class="btn-primary" disabled>開始運算與分析</button>
+        <button id="btnExport" class="btn-success" disabled>匯出完整 Excel 報表 (.xlsx)</button>
+      </div>
+    </div>
+
+    <!-- 報表展示區 (Tabs) -->
+    <div class="report-container" id="reportContainer" style="display: none;">
+      <div class="tabs-header" id="tabsHeader"></div>
+
+      <div class="tab-toolbar">
+        <div class="info" id="reportInfo">請載入檔案並點擊開始運算</div>
+        <input type="text" id="searchInput" class="search-input" placeholder="在目前表格中快速搜尋...">
+      </div>
+
+      <div class="table-wrapper" id="tableContainer"></div>
+    </div>
+  </div>
+
+  <!-- 以 ES Module 載入主控制器 -->
+  <script type="module" src="js/controller.js"></script>
+</body>
+</html>
