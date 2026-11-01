@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>業績整合分析系統 V1.0</title>
+  <title>業績整合分析系統 V2.1</title>
   <link rel="stylesheet" href="css/styles.css">
   <!-- 引入 SheetJS 函式庫用於產生多分頁 Excel 檔案 -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -12,7 +12,7 @@
 
   <div class="container">
     <header>
-      <h1>業績整合分析系統 V1.0</h1>
+      <h1>業績整合分析系統 V2.1</h1>
     </header>
 
     <!-- 來源檔案插槽區 -->
@@ -40,10 +40,8 @@
         <div class="group-label">【Slot 1 門市銷售報表】</div>
         <div class="checkboxes" id="s1CheckGroup">
           <label><input type="checkbox" class="chk-s1" value="S1_RAW" disabled> 門銷原始報表 (匯出底表)</label>
-          <label><input type="checkbox" class="chk-s1" value="S1_R1" disabled> 銷貨明細表</label>
+          <label><input type="checkbox" class="chk-s1" value="S1_R1" disabled> S1_R1 銷貨明細表</label>
           <label><input type="checkbox" class="chk-s1" value="S1_R3" disabled> S1_R3 人員績效統計</label>
-          <label><input type="checkbox" class="chk-s1" value="S1_R4" disabled> S1_R4 品類營收分析</label>
-          <label><input type="checkbox" class="chk-s1" value="S1_R5" disabled> S1_R5 分類銷售明細</label>
           <label><input type="checkbox" class="chk-s1" value="S1_R6" disabled checked> 分類業績報表 (預設焦點)</label>
         </div>
       </div>
@@ -54,7 +52,6 @@
           <label><input type="checkbox" class="chk-s2" value="S2_RAW" disabled> S2_RAW 原始資料 (匯出底表)</label>
           <label><input type="checkbox" class="chk-s2" value="S2_R1" disabled checked> 可銷貨名單 (預設焦點)</label>
           <label><input type="checkbox" class="chk-s2" value="S2_R2" disabled checked> S2_R2 未取件列表 (一單一列)</label>
-          <label><input type="checkbox" class="chk-s2" value="S2_R3" disabled checked> S2_R3 未取訂金品類分析</label>
         </div>
       </div>
 
