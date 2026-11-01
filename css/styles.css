@@ -10,6 +10,7 @@
   --alert-bg: #ffe6e6;
   --alert-text: #dc2626;
   --purple-bg: #f2e6ff;
+  --lightblue-bg: #dbeafe;
 }
 
 * {
@@ -283,6 +284,12 @@ tr:hover td {
 
 .text-center { text-align: center; }
 .text-right { text-align: right; }
+
+.highlight-lightblue td {
+  background-color: var(--lightblue-bg) !important;
+  font-weight: 700;
+  color: #1e3a8a;
+}
 
 .highlight-purple td {
   background-color: var(--purple-bg) !important;

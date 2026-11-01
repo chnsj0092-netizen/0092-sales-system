@@ -1,6 +1,6 @@
 /**
  * 模組名稱：commonUtils.js (共用工具與底層清洗服務層)
- * 職責：提供 UTF-16 LE 檔案解碼、字串控制碼清洗、數值安全轉換、標準商業四捨五入與表頭驗證
+ * 職責：提供 UTF-16 LE / UTF-8 檔案解碼、字串控制碼清洗、數值安全轉換、標準商業四捨五入與欄位結構檢驗
  */
 
 /**
@@ -12,10 +12,10 @@ export function cleanStringVal(val) {
   if (val === null || val === undefined) {
     return "";
   }
-  // 轉為字串處理
   let str = String(val);
-  // 清除 \x80 (CharCode 128) 與歐洲貨幣符號 € (部分編碼轉換產物) 及不間斷空白
-  str = str.replace(/[\x80\u0080\u20ac\t\r\n\0]/g, "");
+  // 清除 \x80 (CharCode 128)、BOM、歐元符號及控制字元
+  str = str.replace(/[\x80\u0080\u20ac\ufeff\t\r\n\0]/g, "");
+  // 將不間斷空白轉為半形空白
   str = str.replace(/\u00a0/g, " ");
   return str.trim();
 }
@@ -36,7 +36,7 @@ export function safeDouble(val) {
   if (str === "" || str === "-") {
     return 0;
   }
-  // 剔除千分位逗號與貨幣符號
+  // 剔除千分位逗號與貨幣符號，保留負號與小數點
   str = str.replace(/[,$NT\s]/g, "");
   const parsed = Number(str);
   return Number.isNaN(parsed) ? 0 : parsed;
@@ -59,7 +59,7 @@ export function safeRound(val, digits = 0) {
 }
 
 /**
- * 計算未稅金額（含稅金額 / 1.05 後標準商業四捨五入取整數）
+ * 計算未稅金額（含稅金額 / 1.05 後標準商業四捨五入取整數，備援用）
  * @param {number} taxedAmount - 含稅金額
  * @returns {number} 未稅整數金額
  */
@@ -115,7 +115,7 @@ export function padZeroLeft(val, targetLen) {
 }
 
 /**
- * 判斷銷售人員工號是否為 E 或 e 開頭
+ * 判斷銷售人員工號是否為 E 或 e 開頭（診所人員特徵）
  * @param {string} staffCode - 銷售人員工號字串
  * @returns {boolean} 若為 E/e 開頭回傳 true，否則回傳 false
  */

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中和南勢角-業績整合統計系統</title>
+  <title>業績整合分析系統 V1.0</title>
   <link rel="stylesheet" href="css/styles.css">
   <!-- 引入 SheetJS 函式庫用於產生多分頁 Excel 檔案 -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -12,7 +12,7 @@
 
   <div class="container">
     <header>
-      <h1>中和南勢角-業績整合統計系統</h1>
+      <h1>業績整合分析系統 V1.0</h1>
     </header>
 
     <!-- 來源檔案插槽區 -->
@@ -37,25 +37,14 @@
     <!-- 控制面板 -->
     <div class="control-panel">
       <div class="options-group">
-        <div class="group-label">【計算規則篩選設定】</div>
-        <div class="checkboxes">
-          <label>
-            <input type="checkbox" id="chkExcludeE" checked>
-            金額計算主動排除 E / e 開頭銷售人員
-          </label>
-        </div>
-      </div>
-
-      <div class="options-group">
         <div class="group-label">【Slot 1 門市銷售報表】</div>
         <div class="checkboxes" id="s1CheckGroup">
-          <label><input type="checkbox" class="chk-s1" value="S1_R1" disabled> S1_R1 原始銷售明細</label>
-          <label><input type="checkbox" class="chk-s1" value="S1_R2" disabled> S1_R2 單據彙整表</label>
+          <label><input type="checkbox" class="chk-s1" value="S1_RAW" disabled> 門銷原始報表 (匯出底表)</label>
+          <label><input type="checkbox" class="chk-s1" value="S1_R1" disabled> 銷貨明細表</label>
           <label><input type="checkbox" class="chk-s1" value="S1_R3" disabled> S1_R3 人員績效統計</label>
-          <label><input type="checkbox" class="chk-s1" value="S1_R4" disabled checked> S1_R4 品類營收分析 (預設)</label>
+          <label><input type="checkbox" class="chk-s1" value="S1_R4" disabled> S1_R4 品類營收分析</label>
           <label><input type="checkbox" class="chk-s1" value="S1_R5" disabled> S1_R5 分類銷售明細</label>
-          <label><input type="checkbox" class="chk-s1" value="S1_R6" disabled> S1_R6 分類銷售彙整</label>
-          <label><input type="checkbox" class="chk-s1" value="S1_R7" disabled checked> S1_R7 分類業績統計</label>
+          <label><input type="checkbox" class="chk-s1" value="S1_R6" disabled checked> 分類業績報表 (預設焦點)</label>
         </div>
       </div>
 

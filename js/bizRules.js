@@ -1,6 +1,6 @@
 /**
  * 模組名稱：bizRules.js (全局統一代碼路由與業務規則引擎)
- * 職責：純邏輯運算、無 I/O，負責 Slot 1 與 Slot 2 共用之商品分類路由、鏡片三分類（單焦/多焦/視控）判定與決勝規則
+ * 職責：純邏輯運算、無 I/O，負責 Slot 1 與 Slot 2 共用之商品分類路由、框片細分（鏡框/單焦/多焦/視控）判定與決勝規則
  */
 
 import { cleanStringVal } from "./commonUtils.js";
@@ -14,11 +14,12 @@ export const CAT_VC_DAILY = "視控日拋";
 export const CAT_PHARMA_DAILY = "藥拋";
 export const CAT_SANMING = "金三明";
 
-/** 鏡片細分三分類常數定義（針對 Slot 1 細化需求） */
-export const LENS_SUB_SINGLE = "單焦鏡片";
-export const LENS_SUB_MULTI = "多焦鏡片";
-export const LENS_SUB_VC = "視控鏡片";
-export const LENS_SUB_NONE = "-";
+/** 框片細分四子類常數定義（針對新版分類業績報表） */
+export const SUB_FRAME = "鏡框";
+export const SUB_SINGLE_LENS = "單焦鏡片";
+export const SUB_MULTI_LENS = "多焦鏡片";
+export const SUB_VC_LENS = "視控鏡片";
+export const SUB_NONE = "-";
 
 /** 專案與特殊分類常數定義 */
 export const CAT_CONTRACT_NO_DETAIL = "承件沒有銷售明細";
@@ -28,7 +29,7 @@ export const CAT_DISCOUNT_ADJ = "帳務調整與折抵";
 export const CAT_BONUS_REDEEM = "紅利折抵";
 export const CAT_MARKETING_ACT = "行銷活動";
 
-/** 視控鏡片 11 組標準關鍵字清單 */
+/** 視控鏡片 11 組標準核心關鍵字清單 */
 const VC_LENS_KEYWORDS = [
   "離焦", "新樂學", "成長", "好學生", "視控",
   "星趣控", "小樂園", "邁兒思", "myovision", "miyosmart", "stellest"
@@ -70,19 +71,19 @@ export function isVisionControlDaily(itemName) {
 }
 
 /**
- * 判定鏡片之三分類（單焦鏡片、多焦鏡片、視控鏡片）
+ * 判定鏡片之細分類（單焦鏡片、多焦鏡片、視控鏡片）
  * 規則：優先檢查是否為視控鏡片（從多焦/單焦中剔除並獨立為視控鏡片），其餘依商品主類分為單焦與多焦
  * @param {string} itemName - 商品品名
  * @param {string} mainCatName - ERP 商品主類名稱（如 "鏡片-單焦"、"鏡片-多焦"）
  * @param {string} mainCatCode - ERP 主類編號（如 "21"、"22"）
- * @returns {{isVCLens: boolean, lensSubCategory: string}} 視控旗標與鏡片三分類名稱
+ * @returns {{isVCLens: boolean, subCategory: string}} 視控旗標與細分類名稱
  */
 export function evaluateLensSubCategory(itemName, mainCatName = "", mainCatCode = "") {
   const isVC = isVisionControlLens(itemName);
   if (isVC) {
     return {
       isVCLens: true,
-      lensSubCategory: LENS_SUB_VC
+      subCategory: SUB_VC_LENS
     };
   }
 
@@ -92,25 +93,25 @@ export function evaluateLensSubCategory(itemName, mainCatName = "", mainCatCode 
   if (cleanMainCat.includes("多焦") || cleanMainCode === "22") {
     return {
       isVCLens: false,
-      lensSubCategory: LENS_SUB_MULTI
+      subCategory: SUB_MULTI_LENS
     };
   }
 
   return {
     isVCLens: false,
-    lensSubCategory: LENS_SUB_SINGLE
+    subCategory: SUB_SINGLE_LENS
   };
 }
 
 /**
- * 全局統一代碼路由引擎（Slot 1 與 Slot 2 共用核心）
+ * 全局統一代碼路由引擎（Slot 1 與 Slot 2 共用核心，金魚審查修正漏洞一：補齊藥拋比對）
  * @param {string} itemCode - 條碼編號 / 貨號
  * @param {string} itemName - 商品品名 / 中文品名
  * @param {number} amount - 含稅小計 / 金額
  * @param {string} refractive - 折射率（Slot 2 欄位，Slot 1 可傳空字串）
- * @param {string} mainCatName - 商品主類（Slot 1 欄位，如 "鏡片-單焦"、"鏡片-多焦"）
- * @param {string} mainCatCode - 主類編號（Slot 1 欄位，如 "21"、"22"）
- * @returns {{category: string, isVCLens: boolean, lensSubCategory: string}} 分類結果物件
+ * @param {string} mainCatName - 商品主類（Slot 1 欄位）
+ * @param {string} mainCatCode - 主類編號（Slot 1 欄位）
+ * @returns {{category: string, isVCLens: boolean, subCategory: string}} 分類結果物件
  */
 export function evaluateUnifiedCategory(
   itemCode,
@@ -129,7 +130,7 @@ export function evaluateUnifiedCategory(
     return {
       category: CAT_BONUS_REDEEM,
       isVCLens: false,
-      lensSubCategory: LENS_SUB_NONE
+      subCategory: SUB_NONE
     };
   }
 
@@ -138,7 +139,7 @@ export function evaluateUnifiedCategory(
     return {
       category: amount > 0 ? CAT_CONTRACT_NO_DETAIL : CAT_SYS_REDEEM,
       isVCLens: false,
-      lensSubCategory: LENS_SUB_NONE
+      subCategory: SUB_NONE
     };
   }
 
@@ -146,21 +147,21 @@ export function evaluateUnifiedCategory(
   const secondChar = code.length >= 2 ? code.charAt(1).toUpperCase() : "";
 
   switch (firstChar) {
-    // [規則 1] 鏡框類（首碼為 A）
+    // [規則 1] 鏡框類（首碼為 A）-> 業務分類為【框片】，細分子類為【鏡框】
     case "A":
       return {
         category: CAT_FRAME_LENS,
         isVCLens: false,
-        lensSubCategory: LENS_SUB_NONE
+        subCategory: SUB_FRAME
       };
 
-    // [規則 2] 鏡片類（首碼為 B）-> 歸入框片，並細分單焦、多焦、視控三類
+    // [規則 2] 鏡片類（首碼為 B）-> 業務分類為【框片】，細分單焦、多焦、視控
     case "B": {
       const lensInfo = evaluateLensSubCategory(name, mainCatName, mainCatCode);
       return {
         category: CAT_FRAME_LENS,
         isVCLens: lensInfo.isVCLens,
-        lensSubCategory: lensInfo.lensSubCategory
+        subCategory: lensInfo.subCategory
       };
     }
 
@@ -169,7 +170,7 @@ export function evaluateUnifiedCategory(
       return {
         category: secondChar === "K" ? CAT_OK_LENS : CAT_LONG_WEAR,
         isVCLens: false,
-        lensSubCategory: LENS_SUB_NONE
+        subCategory: SUB_NONE
       };
 
     // [規則 4] 保健食品類（首碼為 I）
@@ -177,7 +178,7 @@ export function evaluateUnifiedCategory(
       return {
         category: CAT_SANMING,
         isVCLens: false,
-        lensSubCategory: LENS_SUB_NONE
+        subCategory: SUB_NONE
       };
 
     // [規則 6] 行銷活動與促銷套裝（首碼為 G）
@@ -186,7 +187,7 @@ export function evaluateUnifiedCategory(
         return {
           category: CAT_MARKETING_ACT,
           isVCLens: false,
-          lensSubCategory: LENS_SUB_NONE
+          subCategory: SUB_NONE
         };
       }
       if (
@@ -196,34 +197,35 @@ export function evaluateUnifiedCategory(
         return {
           category: CAT_SANMING,
           isVCLens: false,
-          lensSubCategory: LENS_SUB_NONE
+          subCategory: SUB_NONE
         };
       }
       if (isVisionControlDaily(name)) {
         return {
           category: CAT_VC_DAILY,
           isVCLens: false,
-          lensSubCategory: LENS_SUB_NONE
+          subCategory: SUB_NONE
         };
       }
+      // 【金魚漏洞一修正】：補上 "藥拋"，避免正金額 EC 藥拋被誤歸入行銷專案而遺失
       if (
-        name.includes("日拋") || name.includes("月拋") || name.includes("雙週拋") ||
-        name.includes("藥水") || name.includes("保養液") || name.includes("緩衝液") ||
-        name.includes("沖洗液") || name.includes("舒潤液")
+        name.includes("藥拋") || name.includes("日拋") || name.includes("月拋") ||
+        name.includes("雙週拋") || name.includes("藥水") || name.includes("保養液") ||
+        name.includes("緩衝液") || name.includes("沖洗液") || name.includes("舒潤液")
       ) {
         return {
           category: CAT_PHARMA_DAILY,
           isVCLens: false,
-          lensSubCategory: LENS_SUB_NONE
+          subCategory: SUB_NONE
         };
       }
       return {
         category: CAT_PROMO_BUNDLE,
         isVCLens: false,
-        lensSubCategory: LENS_SUB_NONE
+        subCategory: SUB_NONE
       };
 
-    // [規則 7] 廠商標準國際條碼（0~9 開頭之數字條碼）
+    // [規則 7] 廠商標準國際條碼（0~9 開頭之純數字條碼）
     case "0":
     case "1":
     case "2":
@@ -237,7 +239,7 @@ export function evaluateUnifiedCategory(
       return {
         category: isVisionControlDaily(name) ? CAT_VC_DAILY : CAT_PHARMA_DAILY,
         isVCLens: false,
-        lensSubCategory: LENS_SUB_NONE
+        subCategory: SUB_NONE
       };
 
     // [規則 9] 保險兜底（Fallback）
@@ -247,20 +249,20 @@ export function evaluateUnifiedCategory(
         return {
           category: CAT_FRAME_LENS,
           isVCLens: lensInfo.isVCLens,
-          lensSubCategory: lensInfo.lensSubCategory
+          subCategory: lensInfo.subCategory
         };
       }
       return {
         category: CAT_FRAME_LENS,
         isVCLens: false,
-        lensSubCategory: LENS_SUB_NONE
+        subCategory: SUB_FRAME
       };
     }
   }
 }
 
 /**
- * 判定單筆交易屬性（供 Slot 1 明細標註與單據折抵聚合使用）
+ * 判定單筆交易屬性（供明細標註與折抵聚合使用）
  * @param {string} bizCat - 業務分類名稱
  * @param {number} qty - 數量
  * @param {number} amount - 含稅小計金額
