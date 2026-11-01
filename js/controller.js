@@ -1,5 +1,5 @@
 /**
- * 模組名稱：controller.js (主控管線調度與 UI 事件管理模組)
+ * 模組名稱：controller.js (主控管線調度與 UI 事件管理模組 V2.0)
  * 職責：管理檔案拖曳與選取、控制項防呆連動、執行運算管線及 Tab 切換展示
  */
 
@@ -12,6 +12,7 @@ import {
   exportReportsToExcel
 } from "./exportService.js";
 
+/** 應用程式全局狀態物件 */
 const appState = {
   slot1Data: null,
   slot2Data: null,
@@ -19,6 +20,9 @@ const appState = {
   activeTabKey: ""
 };
 
+/**
+ * 儀表板初始化進入點
+ */
 function initDashboard() {
   const slot1Card = document.getElementById("slot1Card");
   const slot2Card = document.getElementById("slot2Card");
@@ -40,6 +44,12 @@ function initDashboard() {
   searchInput.addEventListener("input", e => filterCurrentTable(e.target.value));
 }
 
+/**
+ * 綁定檔案上傳卡片之點擊與拖曳事件
+ * @param {HTMLElement} cardEl - 卡片容器 DOM
+ * @param {HTMLInputElement} inputEl - 隱藏之 File Input DOM
+ * @param {number} slotNum - 插槽編號 (1 或 2)
+ */
 function setupSlotInteractions(cardEl, inputEl, slotNum) {
   cardEl.addEventListener("click", () => inputEl.click());
   inputEl.addEventListener("change", async e => {
@@ -53,6 +63,11 @@ function setupSlotInteractions(cardEl, inputEl, slotNum) {
   });
 }
 
+/**
+ * 處理檔案載入與解析流程
+ * @param {File} file - 使用者上傳之實體檔案
+ * @param {number} slotNum - 插槽編號 (1 或 2)
+ */
 async function handleFileLoad(file, slotNum) {
   const cardEl = document.getElementById(slotNum === 1 ? "slot1Card" : "slot2Card");
   const statusEl = document.getElementById(slotNum === 1 ? "statusSlot1" : "statusSlot2");
@@ -66,7 +81,7 @@ async function handleFileLoad(file, slotNum) {
       enableSlotCheckboxes(".chk-s1", true, ["S1_RAW", "S1_R6"]);
     } else {
       appState.slot2Data = parsed;
-      enableSlotCheckboxes(".chk-s2", true, ["S2_R2", "S2_R3"]);
+      enableSlotCheckboxes(".chk-s2", true, ["S2_RAW", "S2_R1", "S2_R2", "S2_R3"]);
     }
 
     cardEl.classList.add("loaded");
@@ -79,6 +94,12 @@ async function handleFileLoad(file, slotNum) {
   }
 }
 
+/**
+ * 啟用或停用指定勾選方塊
+ * @param {string} selector - CSS 選擇器字串
+ * @param {boolean} enabled - 是否啟用
+ * @param {string[]} defaultChecked - 預設勾選之值陣列
+ */
 function enableSlotCheckboxes(selector, enabled, defaultChecked = []) {
   const boxes = document.querySelectorAll(selector);
   boxes.forEach(box => {
@@ -88,10 +109,16 @@ function enableSlotCheckboxes(selector, enabled, defaultChecked = []) {
   });
 }
 
+/**
+ * 更新主動作按鈕狀態
+ */
 function updateActionButtons() {
   document.getElementById("btnRun").disabled = !(appState.slot1Data || appState.slot2Data);
 }
 
+/**
+ * 執行報表運算主管線
+ */
 function executePipeline() {
   try {
     const selectedKeys = new Set();
@@ -123,12 +150,13 @@ function executePipeline() {
       return;
     }
 
-    // 預設焦點切換（S1_R6 優先，其次 S2_R2）
-    if (appState.masterReportMap.has("S1_R6")) appState.activeTabKey = "S1_R6";
+    // 預設預覽焦點：優先選取可銷貨名單 (S2_R1)，次之 S1_R6，再次之 S2_R2
+    if (appState.masterReportMap.has("S2_R1")) appState.activeTabKey = "S2_R1";
+    else if (appState.masterReportMap.has("S1_R6")) appState.activeTabKey = "S1_R6";
     else if (appState.masterReportMap.has("S2_R2")) appState.activeTabKey = "S2_R2";
     else {
-      // 避開預設選中 S1_RAW
-      const keys = Array.from(appState.masterReportMap.keys()).filter(k => k !== "S1_RAW");
+      // 避開底表 (S1_RAW 與 S2_RAW)
+      const keys = Array.from(appState.masterReportMap.keys()).filter(k => k !== "S1_RAW" && k !== "S2_RAW");
       appState.activeTabKey = keys.length > 0 ? keys[0] : appState.masterReportMap.keys().next().value;
     }
 
@@ -140,13 +168,16 @@ function executePipeline() {
   }
 }
 
+/**
+ * 渲染分頁按鈕群與作用中表格內容
+ */
 function renderTabsAndActiveTable() {
   const tabsHeader = document.getElementById("tabsHeader");
   tabsHeader.innerHTML = "";
 
   for (const item of REPORT_SEQUENCE) {
-    // S1_RAW 僅供匯出實體檔案，不提供網頁預覽
-    if (item.key === "S1_RAW") continue;
+    // S1_RAW 與 S2_RAW 僅供實體匯出，網頁不設 Tab
+    if (item.key === "S1_RAW" || item.key === "S2_RAW") continue;
     if (!appState.masterReportMap.has(item.key)) continue;
 
     const btn = document.createElement("button");
@@ -167,6 +198,10 @@ function renderTabsAndActiveTable() {
   document.getElementById("searchInput").value = "";
 }
 
+/**
+ * 表格內容文字即時過濾篩選
+ * @param {string} keyword - 搜尋字串
+ */
 function filterCurrentTable(keyword) {
   const lower = keyword.trim().toLowerCase();
   const rows = document.querySelectorAll("#tableContainer tbody tr");
