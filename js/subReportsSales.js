@@ -1,6 +1,7 @@
 /**
- * 模組名稱：subReportsSales.js (Slot 1 門市銷售運算模組 V1.0)
- * 職責：以「門銷原始報表」為唯一來源，建構 S1_RAW、S1_R1(銷貨明細表)、S1_R3、S1_R4、S1_R5 與 S1_R6(分類業績報表)
+ * 模組名稱：subReportsSales.js (Slot 1 門市銷售運算模組 V2.1)
+ * 職責：以「門銷原始報表」為唯一來源，建構 S1_RAW、S1_R1(銷貨明細表)、S1_R3(人員績效統計) 與 S1_R6(分類業績報表)
+ * 備註：依據 V2.1 規範已徹底移除 S1_R4 品類營收分析 與 S1_R5 分類銷售明細
  */
 
 import {
@@ -69,7 +70,7 @@ function getS1CategoryIndex(sCat) {
 /**
  * 執行 Slot 1 門市銷售報表運算管線
  * @param {{headers: string[], rows: string[][], colMap: Map<string, number>}} parsedData - 解析後之來源資料
- * @returns {Object} 包含 S1_RAW, S1_R1, S1_R3, S1_R4, S1_R5, S1_R6 的報表封裝物件
+ * @returns {Object} 包含 S1_RAW, S1_R1, S1_R3, S1_R6 的報表封裝物件
  */
 export function runSalesSubReport(parsedData) {
   const { headers, rows, colMap } = parsedData;
@@ -128,7 +129,7 @@ export function runSalesSubReport(parsedData) {
   }
 
   // =========================================================================
-  // 【建立 S1_R1 銷貨明細表】(14 欄，刪除是否排除欄位)
+  // 【建立 S1_R1 銷貨明細表】(14 欄，刪除是否排除欄位，全資料真實呈現)
   // =========================================================================
   const r1Headers = [
     "銷貨日期", "三聯單號", "門銷單號", "條碼編號", "商品品名",
@@ -138,11 +139,7 @@ export function runSalesSubReport(parsedData) {
   const r1Rows = [r1Headers];
 
   // 容器初始化
-  const r3Map = new Map(); // 人員績效 (僅計門市人員)
-  const r5Rows = [[
-    "銷貨日期", "三聯單號", "業務分類", "細項分類",
-    "商品品名", "數量", "小計(含)", "小計(未稅)", "銷售人員", "交易屬性"
-  ]];
+  const r3Map = new Map(); // 人員績效統計字典 (僅計門市人員)
 
   // 大分類統計累加器 (門市人員)：0:框片, 1:長戴, 2:OK LENS, 3:視控鏡片(備用), 4:視控日拋, 5:藥拋
   const storeCatQty = new Array(7).fill(0);
@@ -247,12 +244,6 @@ export function runSalesSubReport(parsedData) {
           frameSubStats[sSubCat].untax += dSubUntax;
         }
 
-        // S1_R5 分類銷售明細 (門市人員)
-        r5Rows.push([
-          sDate, sTri, sBizCat, sSubCat,
-          sName, dQty, dSubTax, dSubUntax, sSalesDisplay, sTransType
-        ]);
-
         // S1_R3 人員績效統計 (僅計門市人員)
         if (sSalesDisplay !== "") {
           if (!r3Map.has(sSalesDisplay)) {
@@ -308,15 +299,16 @@ export function runSalesSubReport(parsedData) {
 
   // 組裝報表
   const r3Rows = buildS1R3(r3Map);
-  const r4Rows = buildS1R4(storeCatAmt, frameSubStats, sanmingStats, discountAmt);
-  const r6Rows = buildS1R6(storeCatQty, storeCatAmt, storeCatUntax, frameSubStats, sanmingStats, discountQty, discountAmt, discountUntax);
+  const r6Rows = buildS1R6(
+    storeCatQty, storeCatAmt, storeCatUntax,
+    frameSubStats, sanmingStats,
+    discountQty, discountAmt, discountUntax
+  );
 
   return {
     S1_RAW: rawRows,
     S1_R1: r1Rows,
     S1_R3: r3Rows,
-    S1_R4: r4Rows,
-    S1_R5: r5Rows,
     S1_R6: r6Rows
   };
 }
@@ -385,48 +377,7 @@ function buildS1R3(r3Map) {
 }
 
 /**
- * 組裝 S1_R4 品類營收分析表
- * @param {number[]} storeCatAmt - 門市大類含稅金額
- * @param {Object} frameSubStats - 框片子類統計
- * @param {Object} sanmingStats - 金三明統計
- * @param {number} discountAmt - 折抵含稅總額
- * @returns {any[][]} S1_R4 二維矩陣
- */
-function buildS1R4(storeCatAmt, frameSubStats, sanmingStats, discountAmt) {
-  const sanmingTotalTax = sanmingStats.store.amt + sanmingStats.clinic.amt;
-  const dGross = storeCatAmt[0] + storeCatAmt[1] + storeCatAmt[2] + storeCatAmt[4] + storeCatAmt[5] + sanmingTotalTax;
-  const dNet = dGross + discountAmt;
-
-  const displayItems = [
-    { name: CAT_FRAME_LENS, amt: storeCatAmt[0], note: "含鏡框與鏡片全系列 (僅門市)" },
-    { name: `  └ ${SUB_FRAME} (金額已含於框片)`, amt: frameSubStats[SUB_FRAME].amt, note: "鏡框市售與名牌" },
-    { name: `  └ ${SUB_SINGLE_LENS} (金額已含於框片)`, amt: frameSubStats[SUB_SINGLE_LENS].amt, note: "單焦鏡片 (已排除視控)" },
-    { name: `  └ ${SUB_MULTI_LENS} (金額已含於框片)`, amt: frameSubStats[SUB_MULTI_LENS].amt, note: "多焦鏡片 (已排除視控)" },
-    { name: `  └ ${SUB_VC_LENS} (金額已含於框片)`, amt: frameSubStats[SUB_VC_LENS].amt, note: "近視控制鏡片 (11組詞庫)" },
-    { name: CAT_LONG_WEAR, amt: storeCatAmt[1], note: "常規硬式/軟式長戴型" },
-    { name: CAT_OK_LENS, amt: storeCatAmt[2], note: "角膜塑型片" },
-    { name: CAT_VC_DAILY, amt: storeCatAmt[4], note: "視控日拋隱形眼鏡" },
-    { name: CAT_PHARMA_DAILY, amt: storeCatAmt[5], note: "一般拋棄式與藥水耗材" },
-    { name: CAT_SANMING, amt: sanmingTotalTax, note: "金三明保健食品 (門市+診所全員)" },
-    { name: "  └ 門市 (非E/e人員)", amt: sanmingStats.store.amt, note: "門市專任人員銷售" },
-    { name: "  └ 診所 (E/e人員)", amt: sanmingStats.clinic.amt, note: "診所醫療同仁銷售" }
-  ];
-
-  const r4Rows = [["營收結構板塊", "實收金額(含稅)", "營業額佔比(%)", "業務備註"]];
-  for (const item of displayItems) {
-    const amtRounded = safeRound(item.amt, 0);
-    const ratio = dGross > 0 ? item.amt / dGross : 0;
-    r4Rows.push([item.name, amtRounded, ratio, item.note]);
-  }
-
-  r4Rows.push([CAT_DISCOUNT_ADJ, safeRound(discountAmt, 0), 0, "含紅利與行銷折抵負額"]);
-  r4Rows.push(["門市實收淨額總計", safeRound(dNet, 0), dGross > 0 ? 1 : 0, "大類加總並扣除折抵 (不重複計入子項)"]);
-
-  return r4Rows;
-}
-
-/**
- * 組裝 S1_R6 分類業績報表 (整合 S1_R6 + S1_R7 核心新表，4 欄結構，淺藍底色)
+ * 組裝 S1_R6 分類業績報表 (4 欄結構，大類淺藍底色)
  * 欄位：A:分類, B:銷售數量, C:含稅售價, D:未稅售價
  * @param {number[]} storeCatQty - 大類數量
  * @param {number[]} storeCatAmt - 大類含稅售價

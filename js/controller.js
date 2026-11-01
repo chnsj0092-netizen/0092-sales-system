@@ -1,6 +1,7 @@
 /**
- * 模組名稱：controller.js (主控管線調度與 UI 事件管理模組 V2.0)
+ * 模組名稱：controller.js (主控管線調度與 UI 事件管理模組 V2.1)
  * 職責：管理檔案拖曳與選取、控制項防呆連動、執行運算管線及 Tab 切換展示
+ * 備註：依據 V2.1 規範已徹底移除 S1_R4、S1_R5 與 S2_R3
  */
 
 import { parseSourceFile } from "./commonUtils.js";
@@ -81,7 +82,7 @@ async function handleFileLoad(file, slotNum) {
       enableSlotCheckboxes(".chk-s1", true, ["S1_RAW", "S1_R6"]);
     } else {
       appState.slot2Data = parsed;
-      enableSlotCheckboxes(".chk-s2", true, ["S2_RAW", "S2_R1", "S2_R2", "S2_R3"]);
+      enableSlotCheckboxes(".chk-s2", true, ["S2_RAW", "S2_R1", "S2_R2"]);
     }
 
     cardEl.classList.add("loaded");

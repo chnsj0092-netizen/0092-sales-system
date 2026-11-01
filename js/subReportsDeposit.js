@@ -1,6 +1,7 @@
 /**
- * 模組名稱：subReportsDeposit.js (Slot 2 訂金未取與可銷貨運算模組 V2.0)
- * 職責：解析訂金未取貨原始資料，建構 S2_RAW 原始中樞、可銷貨名單 (原 S2_R1 替換)、S2_R2 未取件列表與 S2_R3 品類分析
+ * 模組名稱：subReportsDeposit.js (Slot 2 訂金未取與可銷貨運算模組 V2.1)
+ * 職責：解析訂金未取貨原始資料，建構 S2_RAW 原始中樞、可銷貨名單 (原 S2_R1 替換) 與 S2_R2 未取件列表
+ * 備註：依據 V2.1 規範已徹底移除 S2_R3 未取訂金品類分析
  */
 
 import {
@@ -29,29 +30,9 @@ import {
 } from "./bizRules.js";
 
 /**
- * 映射業務分類至 S2_R3 統計欄位索引 (0~7)
- * @param {string} bizCat - 業務分類名稱
- * @returns {number} 索引編號（-1 代表不列入統計）
- */
-function getS2R3SlotIndex(bizCat) {
-  switch (bizCat) {
-    case CAT_FRAME_LENS:
-    case CAT_PROMO_BUNDLE: return 0;
-    case CAT_LONG_WEAR: return 1;
-    case CAT_OK_LENS: return 2;
-    case CAT_VC_LENS: return 3;
-    case CAT_VC_DAILY: return 4;
-    case CAT_PHARMA_DAILY: return 5;
-    case CAT_SANMING: return 6;
-    case CAT_CONTRACT_NO_DETAIL: return 7;
-    default: return -1;
-  }
-}
-
-/**
  * 執行 Slot 2 訂金未取資料解析與報表產出核心函式
  * @param {object} parsedData - 由 commonUtils 解析出之原始資料物件 { rows, colMap }
- * @returns {object} 包含 S2_RAW、S2_R1(可銷貨名單)、S2_R2、S2_R3 二維矩陣之物件
+ * @returns {object} 包含 S2_RAW、S2_R1(可銷貨名單)、S2_R2 二維矩陣之物件
  */
 export function runDepositSubReport(parsedData) {
   const { rows, colMap } = parsedData;
@@ -99,13 +80,6 @@ export function runDepositSubReport(parsedData) {
   // 暫存以三聯單號為單位的聚合資料結構
   const ordersAggregationMap = new Map();
 
-  // S2_R3 累計陣列初始化
-  const catQty = new Array(8).fill(0);
-  const catAmt = new Array(8).fill(0);
-  const catDep = new Array(8).fill(0);
-  const catUnpaid = new Array(8).fill(0);
-  const catOrdersSet = Array.from({ length: 8 }, () => new Set());
-
   for (const rawRow of rows) {
     const sTriNo = padZeroLeft(rawRow[colTriNo], 12);
     const sItemCode = cleanStringVal(rawRow[colItemCode]);
@@ -146,7 +120,6 @@ export function runDepositSubReport(parsedData) {
     // 業務分類計算
     const evalRes = evaluateUnifiedCategory(sItemCode, sItemName, dAmt, sRefr, "", "");
     const sBizCat = evalRes.category;
-    const bIsVCLens = evalRes.isVCLens;
 
     // 聚合單據資料
     if (!ordersAggregationMap.has(sTriNo)) {
@@ -181,23 +154,6 @@ export function runDepositSubReport(parsedData) {
       }
       if (dUnpaidAmt !== 0) orderEntry.allItemsUnpaidZero = false;
       if (dStock <= 0) orderEntry.allItemsStockPositive = false;
-    }
-
-    // S2_R3 品類統計累加
-    const slotIdx = getS2R3SlotIndex(sBizCat);
-    if (slotIdx >= 0 && slotIdx < 8) {
-      catQty[slotIdx] += dQty;
-      catAmt[slotIdx] += dAmt;
-      catDep[slotIdx] += dDepAmt;
-      catUnpaid[slotIdx] += dUnpaidAmt;
-      if (sTriNo !== "") catOrdersSet[slotIdx].add(sTriNo);
-    }
-    if (bIsVCLens) {
-      catQty[3] += dQty;
-      catAmt[3] += dAmt;
-      catDep[3] += dDepAmt;
-      catUnpaid[3] += dUnpaidAmt;
-      if (sTriNo !== "") catOrdersSet[3].add(sTriNo);
     }
   }
 
@@ -255,15 +211,13 @@ export function runDepositSubReport(parsedData) {
     ""
   ]);
 
-  // 3. 建置 S2_R2 未取件列表與 S2_R3 品類分析表
+  // 3. 建置 S2_R2 未取件列表
   const s2R2Rows = buildSortedS2R2(ordersAggregationMap);
-  const s2R3Rows = buildS2R3Matrix(catQty, catAmt, catDep, catUnpaid, catOrdersSet, ordersAggregationMap.size);
 
   return {
     S2_RAW: s2RawRows,
     S2_R1: deliverableRows, // S2_R1 鍵值由可銷貨名單承接
-    S2_R2: s2R2Rows,
-    S2_R3: s2R3Rows
+    S2_R2: s2R2Rows
   };
 }
 
@@ -322,61 +276,4 @@ function buildSortedS2R2(ordersMap) {
   }
   r2Rows.push(["總計", `共 ${sortBuffer.length} 張單據`, "", sumOrd, sumDep, sumUnpaid, sumUntaxed, "", ""]);
   return r2Rows;
-}
-
-/**
- * 建置 S2_R3 未取訂金品類分析表
- * @param {number[]} catQty - 品類未取數量陣列
- * @param {number[]} catAmt - 品類合約金額陣列
- * @param {number[]} catDep - 品類已收訂金陣列
- * @param {number[]} catUnpaid - 品類尚欠尾款陣列
- * @param {Set<string>[]} catOrdersSet - 品類訂單集合陣列
- * @param {number} totalUniqueOrders - 總獨立訂單數
- * @returns {any[][]} 二維資料陣列
- */
-function buildS2R3Matrix(catQty, catAmt, catDep, catUnpaid, catOrdersSet, totalUniqueOrders) {
-  const headers = ["商品業務分類", "未取總件數", "涉及訂單數", "合約總金額(含稅)", "已收訂金總額", "尚欠尾款總額", "合約金額佔比(%)"];
-  const r3Rows = [headers];
-  const rowNames = [
-    CAT_FRAME_LENS,
-    CAT_LONG_WEAR,
-    CAT_OK_LENS,
-    "  └ 視控鏡片 (金額已含於框片)",
-    CAT_VC_DAILY,
-    CAT_PHARMA_DAILY,
-    CAT_SANMING,
-    CAT_CONTRACT_NO_DETAIL
-  ];
-
-  let grandQty = 0, grandAmt = 0, grandDep = 0, grandUnpaid = 0;
-  for (let i = 0; i < 8; i++) {
-    if (i !== 3) {
-      grandQty += catQty[i];
-      grandAmt += catAmt[i];
-      grandDep += catDep[i];
-      grandUnpaid += catUnpaid[i];
-    }
-  }
-
-  for (let i = 0; i < 8; i++) {
-    r3Rows.push([
-      rowNames[i],
-      safeRound(catQty[i], 0),
-      catOrdersSet[i].size,
-      safeRound(catAmt[i], 0),
-      safeRound(catDep[i], 0),
-      safeRound(catUnpaid[i], 0),
-      grandAmt > 0 ? catAmt[i] / grandAmt : 0
-    ]);
-  }
-  r3Rows.push([
-    "全店總計 (已扣除視控重複額)",
-    safeRound(grandQty, 0),
-    totalUniqueOrders,
-    safeRound(grandAmt, 0),
-    safeRound(grandDep, 0),
-    safeRound(grandUnpaid, 0),
-    grandAmt > 0 ? 1 : 0
-  ]);
-  return r3Rows;
 }

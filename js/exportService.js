@@ -1,20 +1,18 @@
 /**
- * 模組名稱：exportService.js (報表渲染與 Excel 匯出服務模組 V2.0)
+ * 模組名稱：exportService.js (報表渲染與 Excel 匯出服務模組 V2.1)
  * 職責：負責網頁表格 DOM 渲染、條件式高亮格式化，以及呼叫 SheetJS 匯出多分頁 .xlsx 檔案
+ * 備註：依據 V2.1 規範已徹底移除 S1_R4 品類營收分析、S1_R5 分類銷售明細與 S2_R3 未取訂金品類分析
  */
 
-/** 報表標準排序與中文名稱定義 */
+/** 報表標準排序與中文名稱定義 (共 7 個標準分頁) */
 export const REPORT_SEQUENCE = [
   { key: "S1_RAW", label: "門銷原始報表" },
   { key: "S1_R1", label: "S1_R1 銷貨明細表" },
   { key: "S1_R3", label: "S1_R3 人員績效統計" },
-  { key: "S1_R4", label: "S1_R4 品類營收分析" },
-  { key: "S1_R5", label: "S1_R5 分類銷售明細" },
   { key: "S1_R6", label: "分類業績報表" },
   { key: "S2_RAW", label: "訂金原始報表" },
   { key: "S2_R1", label: "可銷貨名單" },
-  { key: "S2_R2", label: "S2_R2 未取件列表" },
-  { key: "S2_R3", label: "S2_R3 未取訂金品類分析" }
+  { key: "S2_R2", label: "S2_R2 未取件列表" }
 ];
 
 /**
@@ -73,7 +71,6 @@ export function renderReportTableHTML(reportKey, matrix) {
     let isLightBlueRow = false;
 
     if (reportKey === "S2_R2" && String(row[7] ?? "") === "承件沒有銷售明細") isContractRow = true;
-    else if (reportKey === "S2_R3" && firstCell === "承件沒有銷售明細") isContractRow = true;
 
     // S1_R6 分類業績報表的淺藍底色判定（大類加總項）
     if (reportKey === "S1_R6" && ["框片", "長戴", "OK LENS", "視控日拋", "藥拋", "金三明"].includes(firstCell)) {
