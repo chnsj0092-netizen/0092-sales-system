@@ -1,7 +1,7 @@
 /**
- * 模組名稱：controller.js (主控管線調度與 UI 事件管理模組 V2.1)
+ * 模組名稱：controller.js (主控管線調度與 UI 事件管理模組 V2.2)
  * 職責：管理檔案拖曳與選取、控制項防呆連動、執行運算管線及 Tab 切換展示
- * 備註：依據 V2.1 規範已徹底移除 S1_R4、S1_R5 與 S2_R3
+ * 備註：已更新預設焦點排序與報表分流
  */
 
 import { parseSourceFile } from "./commonUtils.js";
@@ -13,7 +13,7 @@ import {
   exportReportsToExcel
 } from "./exportService.js";
 
-/** 應用程式全局狀態物件 */
+/** 應用程式全域狀態物件 */
 const appState = {
   slot1Data: null,
   slot2Data: null,
@@ -47,8 +47,8 @@ function initDashboard() {
 
 /**
  * 綁定檔案上傳卡片之點擊與拖曳事件
- * @param {HTMLElement} cardEl - 卡片容器 DOM
- * @param {HTMLInputElement} inputEl - 隱藏之 File Input DOM
+ * @param {HTMLElement} cardEl - 卡片容器元素
+ * @param {HTMLInputElement} inputEl - 隱藏之 File Input 元素
  * @param {number} slotNum - 插槽編號 (1 或 2)
  */
 function setupSlotInteractions(cardEl, inputEl, slotNum) {
@@ -79,7 +79,7 @@ async function handleFileLoad(file, slotNum) {
 
     if (slotNum === 1) {
       appState.slot1Data = parsed;
-      enableSlotCheckboxes(".chk-s1", true, ["S1_RAW", "S1_R6"]);
+      enableSlotCheckboxes(".chk-s1", true, ["S1_RAW", "S1_R6", "S1_STAFF"]);
     } else {
       appState.slot2Data = parsed;
       enableSlotCheckboxes(".chk-s2", true, ["S2_RAW", "S2_R1", "S2_R2"]);
@@ -151,12 +151,12 @@ function executePipeline() {
       return;
     }
 
-    // 預設預覽焦點：優先選取可銷貨名單 (S2_R1)，次之 S1_R6，再次之 S2_R2
+    // 預設預覽焦點：優先選取可銷貨名單 (S2_R1)，次之 S1_R6，再次之 S1_STAFF，再次之 S2_R2
     if (appState.masterReportMap.has("S2_R1")) appState.activeTabKey = "S2_R1";
     else if (appState.masterReportMap.has("S1_R6")) appState.activeTabKey = "S1_R6";
+    else if (appState.masterReportMap.has("S1_STAFF")) appState.activeTabKey = "S1_STAFF";
     else if (appState.masterReportMap.has("S2_R2")) appState.activeTabKey = "S2_R2";
     else {
-      // 避開底表 (S1_RAW 與 S2_RAW)
       const keys = Array.from(appState.masterReportMap.keys()).filter(k => k !== "S1_RAW" && k !== "S2_RAW");
       appState.activeTabKey = keys.length > 0 ? keys[0] : appState.masterReportMap.keys().next().value;
     }
@@ -177,7 +177,7 @@ function renderTabsAndActiveTable() {
   tabsHeader.innerHTML = "";
 
   for (const item of REPORT_SEQUENCE) {
-    // S1_RAW 與 S2_RAW 僅供實體匯出，網頁不設 Tab
+    // 原始底表僅供匯出，網頁不生成 Tab
     if (item.key === "S1_RAW" || item.key === "S2_RAW") continue;
     if (!appState.masterReportMap.has(item.key)) continue;
 
@@ -201,7 +201,7 @@ function renderTabsAndActiveTable() {
 
 /**
  * 表格內容文字即時過濾篩選
- * @param {string} keyword - 搜尋字串
+ * @param {string} keyword - 搜尋關鍵字字串
  */
 function filterCurrentTable(keyword) {
   const lower = keyword.trim().toLowerCase();
