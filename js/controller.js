@@ -1,12 +1,12 @@
 /**
- * 模組名稱：controller.js (主控管線調度與 UI 事件管理模組 V2.2)
- * 職責：管理檔案拖曳與選取、控制項防呆連動、執行運算管線及 Tab 切換展示
- * 備註：已更新預設焦點排序與報表分流
+ * 模組名稱：controller.js (主控管線調度與 UI 事件管理模組 V2.3)
+ * 職責：管理三插槽檔案拖曳與選取、控制項防呆連動、執行運算管線及 Tab 切換展示
  */
 
 import { parseSourceFile } from "./commonUtils.js";
 import { runSalesSubReport } from "./subReportsSales.js";
 import { runDepositSubReport } from "./subReportsDeposit.js";
+import { parseHistoricalExcelFile, runGrowthSubReport } from "./subReportsGrowth.js";
 import {
   REPORT_SEQUENCE,
   renderReportTableHTML,
@@ -17,6 +17,7 @@ import {
 const appState = {
   slot1Data: null,
   slot2Data: null,
+  slot3Data: null,
   masterReportMap: new Map(),
   activeTabKey: ""
 };
@@ -27,14 +28,17 @@ const appState = {
 function initDashboard() {
   const slot1Card = document.getElementById("slot1Card");
   const slot2Card = document.getElementById("slot2Card");
+  const slot3Card = document.getElementById("slot3Card");
   const fileSlot1 = document.getElementById("fileSlot1");
   const fileSlot2 = document.getElementById("fileSlot2");
+  const fileSlot3 = document.getElementById("fileSlot3");
   const btnRun = document.getElementById("btnRun");
   const btnExport = document.getElementById("btnExport");
   const searchInput = document.getElementById("searchInput");
 
   setupSlotInteractions(slot1Card, fileSlot1, 1);
   setupSlotInteractions(slot2Card, fileSlot2, 2);
+  setupSlotInteractions(slot3Card, fileSlot3, 3);
 
   btnRun.addEventListener("click", executePipeline);
   btnExport.addEventListener("click", () => {
@@ -49,7 +53,7 @@ function initDashboard() {
  * 綁定檔案上傳卡片之點擊與拖曳事件
  * @param {HTMLElement} cardEl - 卡片容器元素
  * @param {HTMLInputElement} inputEl - 隱藏之 File Input 元素
- * @param {number} slotNum - 插槽編號 (1 或 2)
+ * @param {number} slotNum - 插槽編號 (1、2 或 3)
  */
 function setupSlotInteractions(cardEl, inputEl, slotNum) {
   cardEl.addEventListener("click", () => inputEl.click());
@@ -67,26 +71,40 @@ function setupSlotInteractions(cardEl, inputEl, slotNum) {
 /**
  * 處理檔案載入與解析流程
  * @param {File} file - 使用者上傳之實體檔案
- * @param {number} slotNum - 插槽編號 (1 或 2)
+ * @param {number} slotNum - 插槽編號 (1、2 或 3)
  */
 async function handleFileLoad(file, slotNum) {
-  const cardEl = document.getElementById(slotNum === 1 ? "slot1Card" : "slot2Card");
-  const statusEl = document.getElementById(slotNum === 1 ? "statusSlot1" : "statusSlot2");
+  const cardId = slotNum === 1 ? "slot1Card" : slotNum === 2 ? "slot2Card" : "slot3Card";
+  const statusId = slotNum === 1 ? "statusSlot1" : slotNum === 2 ? "statusSlot2" : "statusSlot3";
+  const cardEl = document.getElementById(cardId);
+  const statusEl = document.getElementById(statusId);
 
   try {
     statusEl.textContent = "正在解析檔案...";
-    const parsed = await parseSourceFile(file);
 
     if (slotNum === 1) {
+      const parsed = await parseSourceFile(file);
       appState.slot1Data = parsed;
       enableSlotCheckboxes(".chk-s1", true, ["S1_RAW", "S1_R6", "S1_STAFF"]);
-    } else {
+      cardEl.classList.add("loaded");
+      statusEl.textContent = `✓ 已載入：${file.name} (${parsed.rows.length} 筆明細)`;
+    } else if (slotNum === 2) {
+      const parsed = await parseSourceFile(file);
       appState.slot2Data = parsed;
       enableSlotCheckboxes(".chk-s2", true, ["S2_RAW", "S2_R1", "S2_R2"]);
+      cardEl.classList.add("loaded");
+      statusEl.textContent = `✓ 已載入：${file.name} (${parsed.rows.length} 筆明細)`;
+    } else if (slotNum === 3) {
+      const parsed = await parseHistoricalExcelFile(file);
+      appState.slot3Data = parsed;
+      cardEl.classList.add("loaded");
+      statusEl.textContent = `✓ 已載入：${file.name} (讀取分頁：${parsed.sheetName})`;
     }
 
-    cardEl.classList.add("loaded");
-    statusEl.textContent = `✓ 已載入：${file.name} (${parsed.rows.length} 筆明細)`;
+    // 當 Slot 1 與 Slot 3 同時載入完成時，啟用「成長率」核取方塊
+    const canRunGrowth = appState.slot1Data !== null && appState.slot3Data !== null;
+    enableSlotCheckboxes(".chk-s3", canRunGrowth, ["S3_GROWTH"]);
+
     updateActionButtons();
   } catch (err) {
     cardEl.classList.remove("loaded");
@@ -123,7 +141,7 @@ function updateActionButtons() {
 function executePipeline() {
   try {
     const selectedKeys = new Set();
-    document.querySelectorAll(".chk-s1:checked, .chk-s2:checked").forEach(box => selectedKeys.add(box.value));
+    document.querySelectorAll(".chk-s1:checked, .chk-s2:checked, .chk-s3:checked").forEach(box => selectedKeys.add(box.value));
 
     if (selectedKeys.size === 0) {
       alert("請至少勾選一張需要產出的報表！");
@@ -132,11 +150,18 @@ function executePipeline() {
 
     appState.masterReportMap.clear();
 
+    let s1Results = null;
     if (appState.slot1Data) {
-      const s1Results = runSalesSubReport(appState.slot1Data);
+      s1Results = runSalesSubReport(appState.slot1Data);
       for (const [k, v] of Object.entries(s1Results)) {
         if (selectedKeys.has(k)) appState.masterReportMap.set(k, v);
       }
+    }
+
+    // 若同時具備 Slot 1 與 Slot 3 且勾選成長率，執行成長率報表運算
+    if (appState.slot1Data && appState.slot3Data && selectedKeys.has("S3_GROWTH") && s1Results) {
+      const growthMatrix = runGrowthSubReport(appState.slot3Data, s1Results.S1_R6, s1Results.S1_RAW);
+      appState.masterReportMap.set("S3_GROWTH", growthMatrix);
     }
 
     if (appState.slot2Data) {
@@ -151,10 +176,11 @@ function executePipeline() {
       return;
     }
 
-    // 預設預覽焦點：優先選取可銷貨名單 (S2_R1)，次之 S1_R6，再次之 S1_STAFF，再次之 S2_R2
+    // 預設預覽焦點優先順序：可銷貨名單 (S2_R1) -> 分類業績報表 (S1_R6) -> 人員業績統計 (S1_STAFF) -> 成長率 (S3_GROWTH) -> 未取件列表 (S2_R2)
     if (appState.masterReportMap.has("S2_R1")) appState.activeTabKey = "S2_R1";
     else if (appState.masterReportMap.has("S1_R6")) appState.activeTabKey = "S1_R6";
     else if (appState.masterReportMap.has("S1_STAFF")) appState.activeTabKey = "S1_STAFF";
+    else if (appState.masterReportMap.has("S3_GROWTH")) appState.activeTabKey = "S3_GROWTH";
     else if (appState.masterReportMap.has("S2_R2")) appState.activeTabKey = "S2_R2";
     else {
       const keys = Array.from(appState.masterReportMap.keys()).filter(k => k !== "S1_RAW" && k !== "S2_RAW");
