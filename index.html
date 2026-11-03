@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>業績整合分析系統 V2.2</title>
+  <title>業績整合分析系統 V2.3</title>
   <link rel="stylesheet" href="css/styles.css">
-  <!-- 引入 SheetJS 函式庫用於產生多分頁 Excel 檔案 -->
+  <!-- 引入 SheetJS 函式庫用於解析與產生多分頁 Excel 檔案 -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
   <div class="container">
     <header>
-      <h1>業績整合分析系統 V2.2</h1>
+      <h1>業績整合分析系統 V2.3</h1>
     </header>
 
-    <!-- 來源檔案插槽區 -->
+    <!-- 來源檔案三插槽區 -->
     <div class="slots-grid">
       <!-- Slot 1: 門市銷售統計檔 -->
       <div class="slot-card" id="slot1Card">
@@ -31,6 +31,14 @@
         <div class="slot-title">Slot 2：訂金未取貨統計檔</div>
         <div class="slot-desc">點擊選取或拖曳訂金未取貨報表 (.xls / .tsv) 至此</div>
         <div class="slot-status" id="statusSlot2">尚未載入檔案</div>
+      </div>
+
+      <!-- Slot 3: 去年業績報表 -->
+      <div class="slot-card" id="slot3Card">
+        <input type="file" id="fileSlot3" accept=".xls,.xlsx" hidden>
+        <div class="slot-title">Slot 3：去年業績報表</div>
+        <div class="slot-desc">點擊選取或拖曳去年月業績檢討報告表 (.xls / .xlsx) 至此</div>
+        <div class="slot-status" id="statusSlot3">尚未載入檔案</div>
       </div>
     </div>
 
@@ -51,6 +59,13 @@
           <label><input type="checkbox" class="chk-s2" value="S2_RAW" disabled> S2_RAW 原始資料 (匯出底表)</label>
           <label><input type="checkbox" class="chk-s2" value="S2_R1" disabled checked> 可銷貨名單 (預設焦點)</label>
           <label><input type="checkbox" class="chk-s2" value="S2_R2" disabled checked> S2_R2 未取件列表 (一單一列)</label>
+        </div>
+      </div>
+
+      <div class="options-group">
+        <div class="group-label">【Slot 3 歷史比對報表】(需同時載入 Slot 1 與 Slot 3)</div>
+        <div class="checkboxes" id="s3CheckGroup">
+          <label><input type="checkbox" class="chk-s3" value="S3_GROWTH" disabled checked> 成長率</label>
         </div>
       </div>
 
