@@ -12,7 +12,7 @@ import {
   formatDateStd,
   padZeroLeft,
   validateSchema
-} from "./commonUtils.js";
+} from "./commonUtils.js?v=2.4.1";
 
 import {
   CAT_FRAME_LENS,
@@ -27,7 +27,7 @@ import {
   CAT_PROMO_BUNDLE,
   evaluateUnifiedCategory,
   resolveOrderMajorCategory
-} from "./bizRules.js";
+} from "./bizRules.js?v=2.4.1";
 
 /**
  * 執行 Slot 2 訂金未取資料解析與報表產出核心函式

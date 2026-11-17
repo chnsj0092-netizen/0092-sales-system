@@ -12,7 +12,7 @@ import {
   padZeroLeft,
   isExcludedStaffE,
   validateSchema
-} from "./commonUtils.js";
+} from "./commonUtils.js?v=2.4.1";
 
 import {
   CAT_FRAME_LENS,
@@ -29,7 +29,7 @@ import {
   SUB_MULTI_LENS,
   SUB_VC_LENS,
   evaluateUnifiedCategory
-} from "./bizRules.js";
+} from "./bizRules.js?v=2.4.1";
 
 /**
  * 取得欄位索引（支援多個同義欄位名稱依序查找）
@@ -112,7 +112,9 @@ export function runSalesSubReport(parsedData) {
   const rawRows = [rawHeaders];
   for (const row of rows) {
     const rawRow = rawHeaders.map(h => {
-      const idx = colMap.get(h);
+      let idx = colMap.get(h);
+      if (idx === undefined && h === "銷貨日期") idx = colMap.get("建檔日期");
+      if (idx === undefined && h === "品名") idx = colMap.get("商品品名");
       return idx !== undefined && idx >= 0 ? cleanStringVal(row[idx]) : "";
     });
     rawRows.push(rawRow);

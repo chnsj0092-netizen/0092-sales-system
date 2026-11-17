@@ -1,6 +1,6 @@
 /**
- * 模組名稱：subReportsGrowth.js (Slot 3 去年業績解析與成長率報表運算模組 V2.3)
- * 職責：解析 Slot 3 去年業績檢討報告表之 12 月工作表，自動比對 Slot 1 銷貨月份並產出「成長率」工作表
+ * 模組名稱：subReportsGrowth.js (Slot 3 去年業績解析與成長率/達成率報表運算模組 V2.4)
+ * 職責：解析 Slot 3 去年檢討報告表之 12 月工作表，比對 Slot 1 銷貨月份，產出包含 11 列之「成長率與目標達成分析」工作表
  */
 
 import {
@@ -8,7 +8,7 @@ import {
   safeDouble,
   safeRound,
   formatDateStd
-} from "./commonUtils.js";
+} from "./commonUtils.js?v=2.4.1";
 
 /**
  * 非同步讀取並解析 Slot 3 去年業績報表 Excel 活頁簿 (.xls / .xlsx)
@@ -207,7 +207,7 @@ function extractThisYearStatsFromS1R6(s1R6Matrix) {
 }
 
 /**
- * 依據確認點 4 防呆規則計算成長率百分比字串
+ * 依據防呆規則計算成長率百分比字串
  * @param {number} lastYearVal - 去年數值
  * @param {number} thisYearVal - 今年數值
  * @returns {string} 格式化後之成長率字串
@@ -220,15 +220,32 @@ function formatGrowthRate(lastYearVal, thisYearVal) {
     return thisYearVal > 0 ? "100%" : "0%";
   }
   const rate = ((thisYearVal - lastYearVal) / lastYearVal) * 100;
+  return `${rate >= 0 ? "+" : ""}${rate.toFixed(2)}%`;
+}
+
+/**
+ * 依據防呆規則計算達成率百分比字串（以去年同期金額為 100%）
+ * @param {number} lastYearVal - 去年數值
+ * @param {number} thisYearVal - 今年數值
+ * @returns {string} 格式化後之達成率字串
+ */
+function formatAchieveRate(lastYearVal, thisYearVal) {
+  if (lastYearVal < 0) {
+    return "-";
+  }
+  if (lastYearVal === 0) {
+    return thisYearVal > 0 ? "100%" : "0%";
+  }
+  const rate = (thisYearVal / lastYearVal) * 100;
   return `${rate.toFixed(2)}%`;
 }
 
 /**
- * 執行成長率工作表運算管線
+ * 執行成長率與目標達成分析報表運算管線 (共 11 個列位)
  * @param {{sheetName: string, matrix: any[][]}} slot3Data - Slot 3 解析後之 12 月工作表物件
  * @param {any[][]} s1R6Matrix - Slot 1 產出之分類業績報表矩陣
  * @param {any[][]} s1RawMatrix - Slot 1 產出之門銷原始報表矩陣
- * @returns {any[][]} 成長率工作表二維矩陣 (4 列 × 9 欄)
+ * @returns {any[][]} 成長率工作表二維矩陣 (12 列 × 9 欄)
  */
 export function runGrowthSubReport(slot3Data, s1R6Matrix, s1RawMatrix) {
   const targetMonth = detectSalesMonthFromS1Raw(s1RawMatrix);
@@ -240,32 +257,87 @@ export function runGrowthSubReport(slot3Data, s1R6Matrix, s1RawMatrix) {
   const headers = ["項目", ...categoryOrder, "總計"];
   const rowLastYear = ["去年"];
   const rowThisYear = ["今年"];
+  const rowDiffThis = ["  └ 距離目標差額"];
   const rowGrowthRate = ["成長率"];
+  const rowAchieveRate = ["達成率"];
+  const rowAmt90 = ["90%達成率金額"];
+  const rowDiff90 = ["  └ 距離目標差額"];
+  const rowAmt110 = ["110%達成率金額"];
+  const rowDiff110 = ["  └ 距離目標差額"];
+  const rowAmt120 = ["120%達成率金額"];
+  const rowDiff120 = ["  └ 距離目標差額"];
 
   let totalLastYear = 0;
   let totalThisYear = 0;
+  let totalDiffThis = 0;
+  let totalAmt90 = 0;
+  let totalDiff90 = 0;
+  let totalAmt110 = 0;
+  let totalDiff110 = 0;
+  let totalAmt120 = 0;
+  let totalDiff120 = 0;
 
   for (const cat of categoryOrder) {
     const lyVal = safeRound(lastYearMap.get(cat) || 0, 0);
     const tyVal = safeRound(thisYearMap.get(cat) || 0, 0);
 
+    // 核心目標差額計算
+    const diffThis = lyVal - tyVal;
+    const amt90 = safeRound(lyVal * 0.9, 0);
+    const diff90 = amt90 - tyVal;
+    const amt110 = safeRound(lyVal * 1.1, 0);
+    const diff110 = amt110 - tyVal;
+    const amt120 = safeRound(lyVal * 1.2, 0);
+    const diff120 = amt120 - tyVal;
+
     rowLastYear.push(lyVal);
     rowThisYear.push(tyVal);
+    rowDiffThis.push(diffThis);
     rowGrowthRate.push(formatGrowthRate(lyVal, tyVal));
+    rowAchieveRate.push(formatAchieveRate(lyVal, tyVal));
+    rowAmt90.push(amt90);
+    rowDiff90.push(diff90);
+    rowAmt110.push(amt110);
+    rowDiff110.push(diff110);
+    rowAmt120.push(amt120);
+    rowDiff120.push(diff120);
 
     totalLastYear += lyVal;
     totalThisYear += tyVal;
+    totalDiffThis += diffThis;
+    totalAmt90 += amt90;
+    totalDiff90 += diff90;
+    totalAmt110 += amt110;
+    totalDiff110 += diff110;
+    totalAmt120 += amt120;
+    totalDiff120 += diff120;
   }
 
-  // 寫入 I 欄總計
+  // 寫入 I 欄總計（金額類採代數加總，比率類獨立以總額計算）
   rowLastYear.push(safeRound(totalLastYear, 0));
   rowThisYear.push(safeRound(totalThisYear, 0));
+  rowDiffThis.push(safeRound(totalDiffThis, 0));
   rowGrowthRate.push(formatGrowthRate(totalLastYear, totalThisYear));
+  rowAchieveRate.push(formatAchieveRate(totalLastYear, totalThisYear));
+  rowAmt90.push(safeRound(totalAmt90, 0));
+  rowDiff90.push(safeRound(totalDiff90, 0));
+  rowAmt110.push(safeRound(totalAmt110, 0));
+  rowDiff110.push(safeRound(totalDiff110, 0));
+  rowAmt120.push(safeRound(totalAmt120, 0));
+  rowDiff120.push(safeRound(totalDiff120, 0));
 
   return [
     headers,
     rowLastYear,
     rowThisYear,
-    rowGrowthRate
+    rowDiffThis,
+    rowGrowthRate,
+    rowAchieveRate,
+    rowAmt90,
+    rowDiff90,
+    rowAmt110,
+    rowDiff110,
+    rowAmt120,
+    rowDiff120
   ];
 }

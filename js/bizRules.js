@@ -3,7 +3,7 @@
  * 職責：純邏輯運算、無 I/O，負責 Slot 1 與 Slot 2 共用之商品分類路由、框片細分判定與決勝規則
  */
 
-import { cleanStringVal } from "./commonUtils.js";
+import { cleanStringVal } from "./commonUtils.js?v=2.4.1";
 
 /** 標準商品業務分類常數定義 */
 export const CAT_FRAME_LENS = "框片";

@@ -1,17 +1,17 @@
 /**
- * 模組名稱：controller.js (主控管線調度與 UI 事件管理模組 V2.3)
+ * 模組名稱：controller.js (主控管線調度與 UI 事件管理模組 V2.4)
  * 職責：管理三插槽檔案拖曳與選取、控制項防呆連動、執行運算管線及 Tab 切換展示
  */
 
-import { parseSourceFile } from "./commonUtils.js";
-import { runSalesSubReport } from "./subReportsSales.js";
-import { runDepositSubReport } from "./subReportsDeposit.js";
-import { parseHistoricalExcelFile, runGrowthSubReport } from "./subReportsGrowth.js";
+import { parseSourceFile } from "./commonUtils.js?v=2.4.1";
+import { runSalesSubReport } from "./subReportsSales.js?v=2.4.1";
+import { runDepositSubReport } from "./subReportsDeposit.js?v=2.4.1";
+import { parseHistoricalExcelFile, runGrowthSubReport } from "./subReportsGrowth.js?v=2.4.1";
 import {
   REPORT_SEQUENCE,
   renderReportTableHTML,
   exportReportsToExcel
-} from "./exportService.js";
+} from "./exportService.js?v=2.4.1";
 
 /** 應用程式全域狀態物件 */
 const appState = {
@@ -176,11 +176,11 @@ function executePipeline() {
       return;
     }
 
-    // 預設預覽焦點優先順序：可銷貨名單 (S2_R1) -> 分類業績報表 (S1_R6) -> 人員業績統計 (S1_STAFF) -> 成長率 (S3_GROWTH) -> 未取件列表 (S2_R2)
-    if (appState.masterReportMap.has("S2_R1")) appState.activeTabKey = "S2_R1";
+    // 預設預覽焦點優先順序：若有載入 Slot 3 產出成長率 (S3_GROWTH) 則優先展示，其次為 可銷貨名單 (S2_R1) -> 分類業績報表 (S1_R6) -> 人員業績統計 (S1_STAFF) -> 未取件列表 (S2_R2)
+    if (appState.masterReportMap.has("S3_GROWTH")) appState.activeTabKey = "S3_GROWTH";
+    else if (appState.masterReportMap.has("S2_R1")) appState.activeTabKey = "S2_R1";
     else if (appState.masterReportMap.has("S1_R6")) appState.activeTabKey = "S1_R6";
     else if (appState.masterReportMap.has("S1_STAFF")) appState.activeTabKey = "S1_STAFF";
-    else if (appState.masterReportMap.has("S3_GROWTH")) appState.activeTabKey = "S3_GROWTH";
     else if (appState.masterReportMap.has("S2_R2")) appState.activeTabKey = "S2_R2";
     else {
       const keys = Array.from(appState.masterReportMap.keys()).filter(k => k !== "S1_RAW" && k !== "S2_RAW");
