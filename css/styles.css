@@ -12,7 +12,7 @@
   --purple-bg: #f2e6ff;
   --lightblue-bg: #dbeafe;
 
-  /* 成長率報表自訂底色 (V2.5) */
+  /* 成長率報表自訂底色 (V2.5 / V2.5.1) */
   --row-this-year-bg: #ffe6a8;
   --row-achieve-bg: #bbff84;
   --row-amt90-bg: #8798ff;
@@ -333,7 +333,7 @@ tr:hover td {
   color: #4b5563;
 }
 
-/* 成長率報表專用自訂底色樣式 (V2.5) */
+/* 成長率報表專用自訂底色與深色高對比文字樣式 (V2.5.1) */
 .growth-this-year td {
   background-color: var(--row-this-year-bg) !important;
   font-weight: 700;
@@ -349,7 +349,7 @@ tr:hover td {
 .growth-amt-90 td {
   background-color: var(--row-amt90-bg) !important;
   font-weight: 700;
-  color: #ffffff;
+  color: #1e1b4b;
 }
 
 .growth-amt-110 td {
