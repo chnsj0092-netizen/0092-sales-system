@@ -3,16 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>業績整合分析系統 V2.5</title>
-  <link rel="stylesheet" href="css/styles.css?v=2.5">
-  <!-- 引入 SheetJS 函式庫用於解析與產生多分頁 Excel 檔案 -->
+  <title>業績整合分析系統 V2.5.1</title>
+  <link rel="stylesheet" href="css/styles.css?v=2.5.1">
+  <!-- 引入 SheetJS 函式庫用於解析來源 .xls / .xlsx 檔案 -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- 引入 ExcelJS 函式庫用於匯出含底色、框線與對齊樣式之多分頁 .xlsx 檔案 -->
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 </head>
 <body>
 
   <div class="container">
     <header>
-      <h1>業績整合分析系統 V2.5</h1>
+      <h1>業績整合分析系統 V2.5.1</h1>
     </header>
 
     <!-- 來源檔案三插槽區 -->
@@ -89,6 +91,6 @@
   </div>
 
   <!-- 以 ES Module 載入主控制器 -->
-  <script type="module" src="js/controller.js?v=2.5"></script>
+  <script type="module" src="js/controller.js?v=2.5.1"></script>
 </body>
 </html>
