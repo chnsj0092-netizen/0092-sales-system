@@ -1,6 +1,9 @@
 /**
- * 模組名稱：subReportsGrowth.js (Slot 3 去年業績解析與成長率/達成率報表運算模組 V2.5)
- * 職責：解析 Slot 3 去年檢討報告表之 12 月工作表，比對 Slot 1 銷貨月份，產出包含七大品類、帳務調整與折抵、總計之成長率分析報表
+ * 模組名稱：subReportsGrowth.js (Slot 3 去年業績解析與成長率/達成率報表運算模組 V2.5.1)
+ * 職責：解析 Slot 3 去年檢討報告表之 12 月工作表，比對 Slot 1 銷貨月份，產出包含 11 列 × 9 欄之「成長率與目標達成分析」工作表
+ * 修正重點 (V2.5.1)：
+ *   1. 取消「帳務調整與折抵」欄位，恢復七大品類與總計之 9 欄結構。
+ *   2. 修正總計欄重複累加「視控鏡片」之邏輯錯誤（視控鏡片金額已含於框片，總計僅累加六大不重疊主分類）。
  */
 
 import {
@@ -8,17 +11,18 @@ import {
   safeDouble,
   safeRound,
   formatDateStd
-} from "./commonUtils.js?v=2.5";
+} from "./commonUtils.js?v=2.5.1";
 
 /**
  * 非同步讀取並解析 Slot 3 去年業績報表 Excel 活頁簿 (.xls / .xlsx)
  * @param {File} file - 使用者上傳之去年業績報表檔案物件
- * @returns {Promise<{sheetName: string, matrix: any[][]}>} 12月工作表名稱與二維陣列資料
+ * @returns {Promise<{sheetName: string, matrix: any[][]}>} 12 月工作表名稱與二維陣列資料
  */
 export async function parseHistoricalExcelFile(file) {
   if (typeof XLSX === "undefined") {
     throw new Error("SheetJS 元件尚未載入完成，無法解析 Excel 檔案。");
   }
+  // 將檔案轉為位元組緩衝區並透過 SheetJS 解析
   const arrayBuffer = await file.arrayBuffer();
   const workbook = XLSX.read(arrayBuffer, { type: "array" });
 
@@ -167,18 +171,17 @@ function extractLastYearStatsFromSlot3(slot3Matrix, targetMonth) {
 }
 
 /**
- * 從 S1_R6 分類業績報表二維陣列中，提取今年七大品類以及「帳務調整與折抵」之未稅售價
+ * 從 S1_R6 分類業績報表二維陣列中，提取今年七大品類之「未稅售價」
  * @param {any[][]} s1R6Matrix - S1_R6 分類業績報表二維陣列
- * @returns {{categoriesMap: Map<string, number>, discountUntax: number}} 今年品類金額與折抵金額
+ * @returns {Map<string, number>} 今年七大品類未稅金額 Map
  */
 function extractThisYearStatsFromS1R6(s1R6Matrix) {
   const categories = ["框片", "長戴", "OK LENS", "視控鏡片", "視控日拋", "藥拋", "金三明"];
-  const categoriesMap = new Map();
-  categories.forEach(c => categoriesMap.set(c, 0));
-  let discountUntax = 0;
+  const thisYearMap = new Map();
+  categories.forEach(c => thisYearMap.set(c, 0));
 
   if (!s1R6Matrix || s1R6Matrix.length < 2) {
-    return { categoriesMap, discountUntax };
+    return thisYearMap;
   }
 
   // S1_R6 結構：A欄(0)=分類, B欄(1)=銷售數量, C欄(2)=含稅售價, D欄(3)=未稅售價
@@ -188,25 +191,23 @@ function extractThisYearStatsFromS1R6(s1R6Matrix) {
     const untaxedVal = safeRound(safeDouble(row[3]), 0);
 
     if (catLabel === "框片") {
-      categoriesMap.set("框片", untaxedVal);
+      thisYearMap.set("框片", untaxedVal);
     } else if (catLabel === "長戴") {
-      categoriesMap.set("長戴", untaxedVal);
+      thisYearMap.set("長戴", untaxedVal);
     } else if (catLabel === "OK LENS") {
-      categoriesMap.set("OK LENS", untaxedVal);
+      thisYearMap.set("OK LENS", untaxedVal);
     } else if (catLabel.includes("└") && catLabel.includes("視控鏡片")) {
-      categoriesMap.set("視控鏡片", untaxedVal);
+      thisYearMap.set("視控鏡片", untaxedVal);
     } else if (catLabel === "視控日拋") {
-      categoriesMap.set("視控日拋", untaxedVal);
+      thisYearMap.set("視控日拋", untaxedVal);
     } else if (catLabel === "藥拋") {
-      categoriesMap.set("藥拋", untaxedVal);
+      thisYearMap.set("藥拋", untaxedVal);
     } else if (catLabel === "金三明") {
-      categoriesMap.set("金三明", untaxedVal);
-    } else if (catLabel.includes("帳務調整與折抵")) {
-      discountUntax = untaxedVal;
+      thisYearMap.set("金三明", untaxedVal);
     }
   }
 
-  return { categoriesMap, discountUntax };
+  return thisYearMap;
 }
 
 /**
@@ -220,7 +221,7 @@ function formatGrowthRate(lastYearVal, thisYearVal) {
     return "-";
   }
   if (lastYearVal === 0) {
-    return thisYearVal !== 0 ? (thisYearVal > 0 ? "100%" : "-100%") : "0%";
+    return thisYearVal > 0 ? "100%" : "0%";
   }
   const rate = ((thisYearVal - lastYearVal) / lastYearVal) * 100;
   return `${rate >= 0 ? "+" : ""}${rate.toFixed(2)}%`;
@@ -237,28 +238,30 @@ function formatAchieveRate(lastYearVal, thisYearVal) {
     return "-";
   }
   if (lastYearVal === 0) {
-    return thisYearVal !== 0 ? (thisYearVal > 0 ? "100%" : "-100%") : "0%";
+    return thisYearVal > 0 ? "100%" : "0%";
   }
   const rate = (thisYearVal / lastYearVal) * 100;
   return `${rate.toFixed(2)}%`;
 }
 
 /**
- * 執行成長率與目標達成分析報表運算管線 (共 11 個列位，10 個欄位：項目 + 7大品類 + 帳務調整與折抵 + 總計)
+ * 執行成長率與目標達成分析報表運算管線 (共 11 個資料列位 × 9 個欄位)
  * @param {{sheetName: string, matrix: any[][]}} slot3Data - Slot 3 解析後之 12 月工作表物件
  * @param {any[][]} s1R6Matrix - Slot 1 產出之分類業績報表矩陣
  * @param {any[][]} s1RawMatrix - Slot 1 產出之門銷原始報表矩陣
- * @returns {any[][]} 成長率工作表二維矩陣 (12 列 × 10 欄)
+ * @returns {any[][]} 成長率工作表二維矩陣 (12 列 × 9 欄)
  */
 export function runGrowthSubReport(slot3Data, s1R6Matrix, s1RawMatrix) {
+  // 偵測當期月份並提取去年與今年業績資料
   const targetMonth = detectSalesMonthFromS1Raw(s1RawMatrix);
   const lastYearMap = extractLastYearStatsFromSlot3(slot3Data.matrix, targetMonth);
-  const { categoriesMap: thisYearMap, discountUntax } = extractThisYearStatsFromS1R6(s1R6Matrix);
+  const thisYearMap = extractThisYearStatsFromS1R6(s1R6Matrix);
 
+  // 橫向顯示之七大品類順序（其中「視控鏡片」金額已包含於「框片」中）
   const categoryOrder = ["框片", "長戴", "OK LENS", "視控鏡片", "視控日拋", "藥拋", "金三明"];
 
-  // 標題欄：金三明與總計之間插入「帳務調整與折抵」
-  const headers = ["項目", ...categoryOrder, "帳務調整與折抵", "總計"];
+  // 定義報表標頭與 11 個資料列位陣列
+  const headers = ["項目", ...categoryOrder, "總計"];
   const rowLastYear = ["去年"];
   const rowThisYear = ["今年"];
   const rowDiffThis = ["  └ 距離目標差額"];
@@ -271,6 +274,7 @@ export function runGrowthSubReport(slot3Data, s1R6Matrix, s1RawMatrix) {
   const rowAmt120 = ["120%達成率金額"];
   const rowDiff120 = ["  └ 距離目標差額"];
 
+  // 總計欄累加器（僅累加六大不重疊主分類，排除已含於框片之「視控鏡片」）
   let totalLastYear = 0;
   let totalThisYear = 0;
   let totalDiffThis = 0;
@@ -281,12 +285,11 @@ export function runGrowthSubReport(slot3Data, s1R6Matrix, s1RawMatrix) {
   let totalAmt120 = 0;
   let totalDiff120 = 0;
 
-  // 1. 填入七大品類資料
   for (const cat of categoryOrder) {
     const lyVal = safeRound(lastYearMap.get(cat) || 0, 0);
     const tyVal = safeRound(thisYearMap.get(cat) || 0, 0);
 
-    // 核心目標差額計算
+    // 計算各梯級目標金額與距離目標差額
     const diffThis = lyVal - tyVal;
     const amt90 = safeRound(lyVal * 0.9, 0);
     const diff90 = amt90 - tyVal;
@@ -307,52 +310,21 @@ export function runGrowthSubReport(slot3Data, s1R6Matrix, s1RawMatrix) {
     rowAmt120.push(amt120);
     rowDiff120.push(diff120);
 
-    totalLastYear += lyVal;
-    totalThisYear += tyVal;
-    totalDiffThis += diffThis;
-    totalAmt90 += amt90;
-    totalDiff90 += diff90;
-    totalAmt110 += amt110;
-    totalDiff110 += diff110;
-    totalAmt120 += amt120;
-    totalDiff120 += diff120;
+    // 排除「視控鏡片」，避免與「框片」重複計入總計
+    if (cat !== "視控鏡片") {
+      totalLastYear += lyVal;
+      totalThisYear += tyVal;
+      totalDiffThis += diffThis;
+      totalAmt90 += amt90;
+      totalDiff90 += diff90;
+      totalAmt110 += amt110;
+      totalDiff110 += diff110;
+      totalAmt120 += amt120;
+      totalDiff120 += diff120;
+    }
   }
 
-  // 2. 填入「帳務調整與折抵」欄位 (折抵僅作用於當期實收，去年同期目標設為 0)
-  const lyDiscount = 0;
-  const tyDiscount = safeRound(discountUntax, 0);
-  const diffDiscountThis = lyDiscount - tyDiscount; // 0 - (-折抵) = 正向回補差額
-  const amtDiscount90 = 0;
-  const diffDiscount90 = amtDiscount90 - tyDiscount;
-  const amtDiscount110 = 0;
-  const diffDiscount110 = amtDiscount110 - tyDiscount;
-  const amtDiscount120 = 0;
-  const diffDiscount120 = amtDiscount120 - tyDiscount;
-
-  rowLastYear.push(lyDiscount);
-  rowThisYear.push(tyDiscount);
-  rowDiffThis.push(diffDiscountThis);
-  rowGrowthRate.push(formatGrowthRate(lyDiscount, tyDiscount));
-  rowAchieveRate.push(formatAchieveRate(lyDiscount, tyDiscount));
-  rowAmt90.push(amtDiscount90);
-  rowDiff90.push(diffDiscount90);
-  rowAmt110.push(amtDiscount110);
-  rowDiff110.push(diffDiscount110);
-  rowAmt120.push(amtDiscount120);
-  rowDiff120.push(diffDiscount120);
-
-  // 累加折抵至總計
-  totalLastYear += lyDiscount;
-  totalThisYear += tyDiscount;
-  totalDiffThis += diffDiscountThis;
-  totalAmt90 += amtDiscount90;
-  totalDiff90 += diffDiscount90;
-  totalAmt110 += amtDiscount110;
-  totalDiff110 += diffDiscount110;
-  totalAmt120 += amtDiscount120;
-  totalDiff120 += diffDiscount120;
-
-  // 3. 寫入總計欄（金額類採代數加總，比率類獨立以總額計算）
+  // 寫入 I 欄總計（金額類採六大主分類代數加總，比率類獨立以總額計算）
   rowLastYear.push(safeRound(totalLastYear, 0));
   rowThisYear.push(safeRound(totalThisYear, 0));
   rowDiffThis.push(safeRound(totalDiffThis, 0));

@@ -1,17 +1,17 @@
 /**
- * 模組名稱：controller.js (主控管線調度與 UI 事件管理模組 V2.5)
- * 職責：管理三插槽檔案拖曳與選取、控制項防呆連動、執行運算管線及 Tab 切換展示
+ * 模組名稱：controller.js (主控管線調度與 UI 事件管理模組 V2.5.1)
+ * 職責：管理三插槽檔案拖曳與選取、控制項防呆連動、執行運算管線、Tab 切換展示及呼叫 ExcelJS 非同步匯出
  */
 
-import { parseSourceFile } from "./commonUtils.js?v=2.5";
-import { runSalesSubReport } from "./subReportsSales.js?v=2.5";
-import { runDepositSubReport } from "./subReportsDeposit.js?v=2.5";
-import { parseHistoricalExcelFile, runGrowthSubReport } from "./subReportsGrowth.js?v=2.5";
+import { parseSourceFile } from "./commonUtils.js?v=2.5.1";
+import { runSalesSubReport } from "./subReportsSales.js?v=2.5.1";
+import { runDepositSubReport } from "./subReportsDeposit.js?v=2.5.1";
+import { parseHistoricalExcelFile, runGrowthSubReport } from "./subReportsGrowth.js?v=2.5.1";
 import {
   REPORT_SEQUENCE,
   renderReportTableHTML,
   exportReportsToExcel
-} from "./exportService.js?v=2.5";
+} from "./exportService.js?v=2.5.1";
 
 /** 應用程式全域狀態物件 */
 const appState = {
@@ -41,10 +41,17 @@ function initDashboard() {
   setupSlotInteractions(slot3Card, fileSlot3, 3);
 
   btnRun.addEventListener("click", executePipeline);
-  btnExport.addEventListener("click", () => {
-    const hasS1 = appState.slot1Data !== null;
-    const hasS2 = appState.slot2Data !== null;
-    exportReportsToExcel(appState.masterReportMap, hasS1, hasS2);
+  btnExport.addEventListener("click", async () => {
+    try {
+      btnExport.disabled = true;
+      const hasS1 = appState.slot1Data !== null;
+      const hasS2 = appState.slot2Data !== null;
+      await exportReportsToExcel(appState.masterReportMap, hasS1, hasS2);
+    } catch (err) {
+      alert(`匯出 Excel 失敗：${err.message}`);
+    } finally {
+      btnExport.disabled = false;
+    }
   });
   searchInput.addEventListener("input", e => filterCurrentTable(e.target.value));
 }
@@ -176,7 +183,7 @@ function executePipeline() {
       return;
     }
 
-    // 預設預覽焦點優先順序：若有載入 Slot 3 產出成長率 (S3_GROWTH) 則優先展示，其次為 可銷貨名單 (S2_R1) -> 分類業績報表 (S1_R6) -> 人員業績統計 (S1_STAFF) -> 未取件列表 (S2_R2)
+    // 預設預覽焦點優先順序：成長率 (S3_GROWTH) -> 可銷貨名單 (S2_R1) -> 分類業績報表 (S1_R6) -> 人員業績統計 (S1_STAFF) -> 未取件列表 (S2_R2)
     if (appState.masterReportMap.has("S3_GROWTH")) appState.activeTabKey = "S3_GROWTH";
     else if (appState.masterReportMap.has("S2_R1")) appState.activeTabKey = "S2_R1";
     else if (appState.masterReportMap.has("S1_R6")) appState.activeTabKey = "S1_R6";

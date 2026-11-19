@@ -3,7 +3,7 @@
  * 職責：純邏輯運算、無 I/O，負責 Slot 1 與 Slot 2 共用之商品分類路由、框片細分判定與決勝規則
  */
 
-import { cleanStringVal } from "./commonUtils.js?v=2.5";
+import { cleanStringVal } from "./commonUtils.js?v=2.5.1";
 
 /** 標準商品業務分類常數定義 */
 export const CAT_FRAME_LENS = "框片";
@@ -170,7 +170,7 @@ export function getTransactionType(bizCat, qty, amount) {
 }
 
 /**
- * 計算 S2_R2 單據之「訂單類別」
+ * 計算未取件列表 (S2_R2) 單據之「訂單類別」
  * @param {number} orderTotalAmount - 單據含稅總額
  * @param {boolean} hasContractNoDetail - 是否含承件沒有銷售明細
  * @param {Map<string, number>} catAmountsMap - 單據內各分類累計金額映射表

@@ -1,6 +1,6 @@
 /**
- * 模組名稱：exportService.js (報表渲染與 Excel 匯出服務模組 V2.5)
- * 職責：負責網頁表格 DOM 渲染、全域置中/靠右對齊格式化、成長率專屬自訂底色高亮，以及呼叫 SheetJS 匯出多分頁 .xlsx 檔案
+ * 模組名稱：exportService.js (報表渲染與 ExcelJS 匯出服務模組 V2.5.1)
+ * 職責：負責網頁表格 DOM 渲染、全域置中/靠右對齊格式化、成長率專屬自訂底色高亮，以及呼叫 ExcelJS 匯出含完整樣式之多分頁 .xlsx 檔案
  */
 
 /** 報表標準排序與中文名稱定義 (共 7 個標準分頁) */
@@ -13,6 +13,18 @@ export const REPORT_SEQUENCE = [
   { key: "S2_R1", label: "可銷貨名單" },
   { key: "S2_R2", label: "未取件列表" }
 ];
+
+/** 成長率報表各高亮列位之色票與深色文字定義表 (網頁與 Excel 共用基準) */
+const GROWTH_ROW_STYLES = {
+  "今年": { cssClass: "growth-this-year", bgArgb: "FFFFE6A8", fontArgb: "FF451A03" },
+  "達成率": { cssClass: "growth-achieve-rate", bgArgb: "FFBBFF84", fontArgb: "FF14532D" },
+  "90%達成率金額": { cssClass: "growth-amt-90", bgArgb: "FF8798FF", fontArgb: "FF1E1B4B" },
+  "110%達成率金額": { cssClass: "growth-amt-110", bgArgb: "FFFFABAB", fontArgb: "FF7F1D1D" },
+  "120%達成率金額": { cssClass: "growth-amt-120", bgArgb: "FFFF93E9", fontArgb: "FF701A75" }
+};
+
+/** S1_R6 分類業績報表需標記淺藍底色之六大主分類清單 */
+const S1_R6_MAIN_CATEGORIES = ["框片", "長戴", "OK LENS", "視控日拋", "藥拋", "金三明"];
 
 /**
  * 檢驗是否屬於數值或金額欄位
@@ -31,8 +43,7 @@ function isAmountOrQtyColumn(colName) {
     colName.includes("框片") || colName.includes("長戴") ||
     colName.includes("單焦鏡片") || colName.includes("多焦鏡片") || colName.includes("視控鏡片") ||
     colName.includes("OK LENS") || colName.includes("視控日拋") ||
-    colName.includes("藥拋") || colName.includes("金三明") ||
-    colName.includes("帳務調整與折抵")
+    colName.includes("藥拋") || colName.includes("金三明")
   ) && !colName.includes("是否");
 }
 
@@ -70,38 +81,14 @@ export function renderReportTableHTML(reportKey, matrix) {
   dataRows.forEach(row => {
     const firstCell = String(row[0] ?? "").trim();
     const isTotalRow = firstCell.includes("總計");
-    let isContractRow = false;
-    let isLightBlueRow = false;
+    const isContractRow = reportKey === "S2_R2" && String(row[7] ?? "") === "承件沒有銷售明細";
+    const isLightBlueRow = reportKey === "S1_R6" && S1_R6_MAIN_CATEGORIES.includes(firstCell);
+    const growthStyle = reportKey === "S3_GROWTH" ? GROWTH_ROW_STYLES[firstCell] : null;
 
-    // 成長率報表專用自訂底色判定 (V2.5)
-    let isGrowthThisYear = false;
-    let isGrowthAchieveRate = false;
-    let isGrowthAmt90 = false;
-    let isGrowthAmt110 = false;
-    let isGrowthAmt120 = false;
-
-    if (reportKey === "S3_GROWTH") {
-      if (firstCell === "今年") isGrowthThisYear = true;
-      else if (firstCell === "達成率") isGrowthAchieveRate = true;
-      else if (firstCell === "90%達成率金額") isGrowthAmt90 = true;
-      else if (firstCell === "110%達成率金額") isGrowthAmt110 = true;
-      else if (firstCell === "120%達成率金額") isGrowthAmt120 = true;
-    }
-
-    if (reportKey === "S2_R2" && String(row[7] ?? "") === "承件沒有銷售明細") isContractRow = true;
-
-    // S1_R6 分類業績報表之大類加總底色
-    if (reportKey === "S1_R6" && ["框片", "長戴", "OK LENS", "視控日拋", "藥拋", "金三明"].includes(firstCell)) {
-      isLightBlueRow = true;
-    }
-
+    // 決定該資料列之 CSS 樣式類別
     let trClass = "";
     if (isTotalRow) trClass = "total-row";
-    else if (isGrowthThisYear) trClass = "growth-this-year";
-    else if (isGrowthAchieveRate) trClass = "growth-achieve-rate";
-    else if (isGrowthAmt90) trClass = "growth-amt-90";
-    else if (isGrowthAmt110) trClass = "growth-amt-110";
-    else if (isGrowthAmt120) trClass = "growth-amt-120";
+    else if (growthStyle) trClass = growthStyle.cssClass;
     else if (isContractRow) trClass = "highlight-purple";
     else if (isLightBlueRow) trClass = "highlight-lightblue";
 
@@ -109,7 +96,7 @@ export function renderReportTableHTML(reportKey, matrix) {
 
     row.forEach((cell, cIdx) => {
       const colName = String(headers[cIdx] ?? "");
-      let classes = [];
+      const classes = [];
       let displayVal = cell ?? "";
 
       // 首欄（列位標題）統一設定置中，其餘儲存格資料內容全部靠右對齊
@@ -141,67 +128,227 @@ export function renderReportTableHTML(reportKey, matrix) {
 
   html += "</tbody></table>";
   const rowCount = reportKey === "S3_GROWTH" ? dataRows.length : Math.max(0, dataRows.length - 1);
-  const infoText = `目前檢視：${reportKey} ｜ 共 ${rowCount} 筆資料列`;
+  const reportMeta = REPORT_SEQUENCE.find(item => item.key === reportKey);
+  const displayName = reportMeta ? reportMeta.label : reportKey;
+  const infoText = `目前檢視：${displayName} ｜ 共 ${rowCount} 筆資料列`;
   return { html, infoText };
 }
 
 /**
- * 將使用者選取之報表集合匯出為多分頁 .xlsx 活頁簿
+ * 取得匯出工作表對應之 Excel 分頁名稱
+ * @param {string} reportKey - 報表內部代號
+ * @returns {string} Excel 工作表標籤名稱
+ */
+function getExcelSheetName(reportKey) {
+  if (reportKey === "S2_R1") return "可銷貨名單";
+  if (reportKey === "S1_STAFF") return "人員業績統計";
+  if (reportKey === "S3_GROWTH") return "成長率";
+  if (reportKey === "S2_R2") return "未取件列表";
+  return reportKey;
+}
+
+/**
+ * 透過 ExcelJS 將使用者選取之報表集合匯出為含完整底色、框線與對齊樣式之多分頁 .xlsx 活頁簿
  * @param {Map<string, any[][]>} selectedReportsMap - 已勾選之報表映射表
  * @param {boolean} hasS1 - 是否包含 Slot 1 資料
  * @param {boolean} hasS2 - 是否包含 Slot 2 資料
+ * @returns {Promise<void>}
  */
-export function exportReportsToExcel(selectedReportsMap, hasS1, hasS2) {
-  if (typeof XLSX === "undefined") {
-    alert("SheetJS 元件尚未載入完成，請檢查網路連線後重試。");
+export async function exportReportsToExcel(selectedReportsMap, hasS1, hasS2) {
+  if (typeof ExcelJS === "undefined") {
+    alert("ExcelJS 匯出元件尚未載入完成，請檢查網路連線後重試。");
     return;
   }
-  const wb = XLSX.utils.book_new();
+
+  // 建立 ExcelJS 活頁簿物件
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "業績整合分析系統 V2.5.1";
+  workbook.created = new Date();
+
+  // 共用框線樣式定義
+  const thinGridBorder = {
+    top: { style: "thin", color: { argb: "FFE5E7EB" } },
+    left: { style: "thin", color: { argb: "FFE5E7EB" } },
+    bottom: { style: "thin", color: { argb: "FFE5E7EB" } },
+    right: { style: "thin", color: { argb: "FFE5E7EB" } }
+  };
+  const headerBorder = {
+    top: { style: "thin", color: { argb: "FF365F91" } },
+    left: { style: "thin", color: { argb: "FF365F91" } },
+    bottom: { style: "thin", color: { argb: "FF365F91" } },
+    right: { style: "thin", color: { argb: "FF365F91" } }
+  };
+  const totalRowBorder = {
+    top: { style: "thin", color: { argb: "FF9CA3AF" } },
+    left: { style: "thin", color: { argb: "FFE5E7EB" } },
+    bottom: { style: "double", color: { argb: "FF4B5563" } },
+    right: { style: "thin", color: { argb: "FFE5E7EB" } }
+  };
 
   for (const item of REPORT_SEQUENCE) {
     if (!selectedReportsMap.has(item.key)) continue;
 
     const matrix = selectedReportsMap.get(item.key);
+    if (!matrix || matrix.length === 0) continue;
+
     const headers = matrix[0] || [];
+    const sheetName = getExcelSheetName(item.key);
 
-    const formattedMatrix = matrix.map((row, rIdx) => {
-      if (rIdx === 0) return row;
-      return row.map((cell, cIdx) => {
+    // 建立工作表並凍結第 1 列標題
+    const worksheet = workbook.addWorksheet(sheetName, {
+      views: [{ state: "frozen", ySplit: 1 }]
+    });
+
+    // 追蹤各欄最大字元寬度以自動調整欄寬
+    const maxColLengths = headers.map(h => String(h ?? "").length * 2.1);
+
+    // 1. 寫入表頭列 (第 1 列)
+    const headerRow = worksheet.addRow(headers);
+    headerRow.height = 24;
+    headerRow.eachCell((cell) => {
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF244061" }
+      };
+      cell.font = {
+        name: "Microsoft JhengHei",
+        size: 10,
+        bold: true,
+        color: { argb: "FFFFFFFF" }
+      };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+      cell.border = headerBorder;
+    });
+
+    // 2. 逐列寫入資料列並套用對齊、數值格式與條件式底色
+    for (let rIdx = 1; rIdx < matrix.length; rIdx++) {
+      const rawRow = matrix[rIdx];
+      const firstCell = String(rawRow[0] ?? "").trim();
+
+      const isTotalRow = firstCell.includes("總計");
+      const isContractRow = item.key === "S2_R2" && String(rawRow[7] ?? "") === "承件沒有銷售明細";
+      const isLightBlueRow = item.key === "S1_R6" && S1_R6_MAIN_CATEGORIES.includes(firstCell);
+      const growthStyle = item.key === "S3_GROWTH" ? GROWTH_ROW_STYLES[firstCell] : null;
+
+      // 準備儲存格寫入值陣列
+      const processedRow = rawRow.map((val, cIdx) => {
         const colName = String(headers[cIdx] ?? "");
-        if (isPercentColumn(colName) && typeof cell === "number") return `${(cell * 100).toFixed(2)}%`;
-        return cell;
+        if (isPercentColumn(colName) && typeof val === "number") {
+          return `${(val * 100).toFixed(2)}%`;
+        }
+        return val ?? "";
       });
-    });
 
-    const ws = XLSX.utils.aoa_to_sheet(formattedMatrix);
+      const excelRow = worksheet.addRow(processedRow);
+      excelRow.height = 20;
 
-    const colWidths = headers.map((h, cIdx) => {
-      let maxLen = String(h ?? "").length * 2;
-      for (let r = 1; r < formattedMatrix.length; r++) {
-        const valStr = String(formattedMatrix[r][cIdx] ?? "");
-        const len = valStr.length * (/[^\x00-\xff]/.test(valStr) ? 1.8 : 1.1);
-        if (len > maxLen) maxLen = len;
+      // 決定整列之預設底色與字體顏色
+      let rowFillArgb = rIdx % 2 === 0 ? "FFF9FAFB" : null;
+      let rowFontArgb = "FF1F2937";
+      let rowBold = false;
+      let rowBorder = thinGridBorder;
+
+      if (isTotalRow) {
+        rowFillArgb = "FFE5E7EB";
+        rowBold = true;
+        rowBorder = totalRowBorder;
+      } else if (growthStyle) {
+        rowFillArgb = growthStyle.bgArgb;
+        rowFontArgb = growthStyle.fontArgb;
+        rowBold = true;
+      } else if (isContractRow) {
+        rowFillArgb = "FFF2E6FF";
+      } else if (isLightBlueRow) {
+        rowFillArgb = "FFDBEAFE";
+        rowFontArgb = "FF1E3A8A";
+        rowBold = true;
       }
-      return { wch: Math.min(Math.max(maxLen + 3, 10), 48) };
-    });
-    ws["!cols"] = colWidths;
 
-    // 工作表標籤命名對應 (V2.5 命名對應)
-    let sheetName = item.key;
-    if (item.key === "S2_R1") sheetName = "可銷貨名單";
-    else if (item.key === "S1_STAFF") sheetName = "人員業績統計";
-    else if (item.key === "S3_GROWTH") sheetName = "成長率";
-    else if (item.key === "S2_R2") sheetName = "未取件列表";
+      excelRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        const cIdx = colNumber - 1;
+        const colName = String(headers[cIdx] ?? "");
+        const cellVal = processedRow[cIdx];
 
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+        // 估算寬度以更新該欄最大寬度
+        const valStr = typeof cellVal === "number" ? cellVal.toLocaleString("zh-TW") : String(cellVal ?? "");
+        const estLen = valStr.length * (/[^\x00-\xff]/.test(valStr) ? 1.9 : 1.15);
+        if (estLen > maxColLengths[cIdx]) {
+          maxColLengths[cIdx] = estLen;
+        }
+
+        // 對齊規範：首欄置中且粗體，其餘儲存格靠右對齊
+        cell.alignment = {
+          horizontal: cIdx === 0 ? "center" : "right",
+          vertical: "middle"
+        };
+
+        // 數值千分位格式化
+        if (typeof cellVal === "number" && (isAmountOrQtyColumn(colName) || item.key === "S3_GROWTH")) {
+          cell.numFmt = "#,##0";
+        }
+
+        // 子項縮排文字色調整（無特殊底色時套用次要灰）
+        let finalFontArgb = rowFontArgb;
+        let finalFillArgb = rowFillArgb;
+        let finalBold = rowBold || cIdx === 0;
+
+        if (!rowFillArgb && typeof cellVal === "string" && cellVal.includes("└")) {
+          finalFontArgb = "FF4B5563";
+        }
+
+        // S2_R2 未取件列表「尚欠尾款」大於 0 紅底紅字警示
+        if (!isTotalRow && item.key === "S2_R2" && cIdx === 5 && typeof cellVal === "number" && cellVal > 0) {
+          finalFillArgb = "FFFFE6E6";
+          finalFontArgb = "FFDC2626";
+          finalBold = true;
+        }
+
+        if (finalFillArgb) {
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: finalFillArgb }
+          };
+        }
+
+        cell.font = {
+          name: "Microsoft JhengHei",
+          size: 10,
+          bold: finalBold,
+          color: { argb: finalFontArgb }
+        };
+        cell.border = rowBorder;
+      });
+    }
+
+    // 3. 套用自動計算之欄寬
+    worksheet.columns = maxColLengths.map(len => ({
+      width: Math.min(Math.max(Math.ceil(len + 4), 12), 48)
+    }));
   }
 
+  // 4. 產生動態檔名並觸發瀏覽器下載
   const now = new Date();
-  const dateStr = now.getFullYear().toString() + String(now.getMonth() + 1).padStart(2, "0") + String(now.getDate()).padStart(2, "0");
-  
+  const dateStr = now.getFullYear().toString()
+    + String(now.getMonth() + 1).padStart(2, "0")
+    + String(now.getDate()).padStart(2, "0");
+
   let fileName = `營運綜合統計報表_${dateStr}.xlsx`;
   if (hasS1 && !hasS2) fileName = `門市業績統計報表_${dateStr}.xlsx`;
   else if (!hasS1 && hasS2) fileName = `訂金未取貨統計表_${dateStr}.xlsx`;
 
-  XLSX.writeFile(wb, fileName);
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  });
+
+  const downloadUrl = URL.createObjectURL(blob);
+  const linkEl = document.createElement("a");
+  linkEl.href = downloadUrl;
+  linkEl.download = fileName;
+  document.body.appendChild(linkEl);
+  linkEl.click();
+  document.body.removeChild(linkEl);
+  URL.revokeObjectURL(downloadUrl);
 }
