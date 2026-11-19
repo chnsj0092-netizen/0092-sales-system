@@ -1,17 +1,17 @@
 /**
- * 模組名稱：controller.js (主控管線調度與 UI 事件管理模組 V2.4)
+ * 模組名稱：controller.js (主控管線調度與 UI 事件管理模組 V2.5)
  * 職責：管理三插槽檔案拖曳與選取、控制項防呆連動、執行運算管線及 Tab 切換展示
  */
 
-import { parseSourceFile } from "./commonUtils.js?v=2.4.1";
-import { runSalesSubReport } from "./subReportsSales.js?v=2.4.1";
-import { runDepositSubReport } from "./subReportsDeposit.js?v=2.4.1";
-import { parseHistoricalExcelFile, runGrowthSubReport } from "./subReportsGrowth.js?v=2.4.1";
+import { parseSourceFile } from "./commonUtils.js?v=2.5";
+import { runSalesSubReport } from "./subReportsSales.js?v=2.5";
+import { runDepositSubReport } from "./subReportsDeposit.js?v=2.5";
+import { parseHistoricalExcelFile, runGrowthSubReport } from "./subReportsGrowth.js?v=2.5";
 import {
   REPORT_SEQUENCE,
   renderReportTableHTML,
   exportReportsToExcel
-} from "./exportService.js?v=2.4.1";
+} from "./exportService.js?v=2.5";
 
 /** 應用程式全域狀態物件 */
 const appState = {

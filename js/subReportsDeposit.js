@@ -1,6 +1,6 @@
 /**
  * 模組名稱：subReportsDeposit.js (Slot 2 訂金未取與可銷貨運算模組 V2.1)
- * 職責：解析訂金未取貨原始資料，建構 S2_RAW 原始中樞、可銷貨名單 (原 S2_R1 替換) 與 S2_R2 未取件列表
+ * 職責：解析訂金未取貨原始資料，建構 S2_RAW 原始中樞、可銷貨名單 (原 S2_R1 替換) 與 未取件列表
  * 備註：依據 V2.1 規範已徹底移除 S2_R3 未取訂金品類分析
  */
 
@@ -12,7 +12,7 @@ import {
   formatDateStd,
   padZeroLeft,
   validateSchema
-} from "./commonUtils.js?v=2.4.1";
+} from "./commonUtils.js?v=2.5";
 
 import {
   CAT_FRAME_LENS,
@@ -27,7 +27,7 @@ import {
   CAT_PROMO_BUNDLE,
   evaluateUnifiedCategory,
   resolveOrderMajorCategory
-} from "./bizRules.js?v=2.4.1";
+} from "./bizRules.js?v=2.5";
 
 /**
  * 執行 Slot 2 訂金未取資料解析與報表產出核心函式
@@ -211,7 +211,7 @@ export function runDepositSubReport(parsedData) {
     ""
   ]);
 
-  // 3. 建置 S2_R2 未取件列表
+  // 3. 建置 未取件列表
   const s2R2Rows = buildSortedS2R2(ordersAggregationMap);
 
   return {
@@ -222,7 +222,7 @@ export function runDepositSubReport(parsedData) {
 }
 
 /**
- * 建置 S2_R2 未取件列表（一單一列，雙層排序）
+ * 建置 未取件列表（一單一列，雙層排序）
  * @param {Map<string, object>} ordersMap - 訂單聚合字典
  * @returns {any[][]} 二維資料陣列
  */

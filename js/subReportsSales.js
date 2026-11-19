@@ -12,7 +12,7 @@ import {
   padZeroLeft,
   isExcludedStaffE,
   validateSchema
-} from "./commonUtils.js?v=2.4.1";
+} from "./commonUtils.js?v=2.5";
 
 import {
   CAT_FRAME_LENS,
@@ -29,7 +29,7 @@ import {
   SUB_MULTI_LENS,
   SUB_VC_LENS,
   evaluateUnifiedCategory
-} from "./bizRules.js?v=2.4.1";
+} from "./bizRules.js?v=2.5";
 
 /**
  * 取得欄位索引（支援多個同義欄位名稱依序查找）

@@ -1,6 +1,6 @@
 /**
- * 模組名稱：exportService.js (報表渲染與 Excel 匯出服務模組 V2.4)
- * 職責：負責網頁表格 DOM 渲染、全域置中/靠右對齊格式化、條件式高亮，以及呼叫 SheetJS 匯出多分頁 .xlsx 檔案
+ * 模組名稱：exportService.js (報表渲染與 Excel 匯出服務模組 V2.5)
+ * 職責：負責網頁表格 DOM 渲染、全域置中/靠右對齊格式化、成長率專屬自訂底色高亮，以及呼叫 SheetJS 匯出多分頁 .xlsx 檔案
  */
 
 /** 報表標準排序與中文名稱定義 (共 7 個標準分頁) */
@@ -11,7 +11,7 @@ export const REPORT_SEQUENCE = [
   { key: "S3_GROWTH", label: "成長率" },
   { key: "S2_RAW", label: "訂金原始報表" },
   { key: "S2_R1", label: "可銷貨名單" },
-  { key: "S2_R2", label: "S2_R2 未取件列表" }
+  { key: "S2_R2", label: "未取件列表" }
 ];
 
 /**
@@ -31,7 +31,8 @@ function isAmountOrQtyColumn(colName) {
     colName.includes("框片") || colName.includes("長戴") ||
     colName.includes("單焦鏡片") || colName.includes("多焦鏡片") || colName.includes("視控鏡片") ||
     colName.includes("OK LENS") || colName.includes("視控日拋") ||
-    colName.includes("藥拋") || colName.includes("金三明")
+    colName.includes("藥拋") || colName.includes("金三明") ||
+    colName.includes("帳務調整與折抵")
   ) && !colName.includes("是否");
 }
 
@@ -67,10 +68,25 @@ export function renderReportTableHTML(reportKey, matrix) {
   html += "</tr></thead><tbody>";
 
   dataRows.forEach(row => {
-    const firstCell = String(row[0] ?? "");
+    const firstCell = String(row[0] ?? "").trim();
     const isTotalRow = firstCell.includes("總計");
     let isContractRow = false;
     let isLightBlueRow = false;
+
+    // 成長率報表專用自訂底色判定 (V2.5)
+    let isGrowthThisYear = false;
+    let isGrowthAchieveRate = false;
+    let isGrowthAmt90 = false;
+    let isGrowthAmt110 = false;
+    let isGrowthAmt120 = false;
+
+    if (reportKey === "S3_GROWTH") {
+      if (firstCell === "今年") isGrowthThisYear = true;
+      else if (firstCell === "達成率") isGrowthAchieveRate = true;
+      else if (firstCell === "90%達成率金額") isGrowthAmt90 = true;
+      else if (firstCell === "110%達成率金額") isGrowthAmt110 = true;
+      else if (firstCell === "120%達成率金額") isGrowthAmt120 = true;
+    }
 
     if (reportKey === "S2_R2" && String(row[7] ?? "") === "承件沒有銷售明細") isContractRow = true;
 
@@ -81,6 +97,11 @@ export function renderReportTableHTML(reportKey, matrix) {
 
     let trClass = "";
     if (isTotalRow) trClass = "total-row";
+    else if (isGrowthThisYear) trClass = "growth-this-year";
+    else if (isGrowthAchieveRate) trClass = "growth-achieve-rate";
+    else if (isGrowthAmt90) trClass = "growth-amt-90";
+    else if (isGrowthAmt110) trClass = "growth-amt-110";
+    else if (isGrowthAmt120) trClass = "growth-amt-120";
     else if (isContractRow) trClass = "highlight-purple";
     else if (isLightBlueRow) trClass = "highlight-lightblue";
 
@@ -165,11 +186,12 @@ export function exportReportsToExcel(selectedReportsMap, hasS1, hasS2) {
     });
     ws["!cols"] = colWidths;
 
-    // 工作表標籤命名對應
+    // 工作表標籤命名對應 (V2.5 命名對應)
     let sheetName = item.key;
     if (item.key === "S2_R1") sheetName = "可銷貨名單";
     else if (item.key === "S1_STAFF") sheetName = "人員業績統計";
     else if (item.key === "S3_GROWTH") sheetName = "成長率";
+    else if (item.key === "S2_R2") sheetName = "未取件列表";
 
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
   }
